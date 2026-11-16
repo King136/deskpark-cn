@@ -10,6 +10,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.deskpark.park.host.ParkHostPlugin;
 import com.getcapacitor.BridgeActivity;
 
 /**
@@ -24,6 +25,8 @@ public class MainActivity extends BridgeActivity {
 
   @Override
   public void onCreate(Bundle savedInstanceState) {
+    // 局域网主机插件要在 bridge 起来之前注册
+    registerPlugin(ParkHostPlugin.class);
     super.onCreate(savedInstanceState);
 
     WindowCompat.setDecorFitsSystemWindows(getWindow(), false);

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { handleAiProxy, isAiProxyPath } from './aiProxy';
 import { clientIp } from './net';
+import { filePersist } from './persist';
 import type { ServerConfig } from './rooms';
 import { DEFAULT_CONFIG, Hub } from './rooms';
 
@@ -122,7 +123,10 @@ function serveStatic(root: string, req: IncomingMessage, res: ServerResponse): v
 
 export function startServer(opts: StartOptions) {
   const config: ServerConfig = { ...DEFAULT_CONFIG, ...opts.config };
-  const hub = new Hub(config);
+  const hub = new Hub({
+    ...config,
+    persist: process.env.PARK_ROOMS_PERSIST === '0' ? undefined : filePersist(),
+  });
   // 换机接棒：把盘上还在的房间接回来
   const restored = hub.restoreRooms();
   if (restored) config.log?.('[room] restored', restored);

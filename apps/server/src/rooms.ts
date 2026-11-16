@@ -11,10 +11,20 @@ import type {
   SeatInfo,
   ServerMessage,
 } from '@park/protocol';
-import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { settleMatch } from '@park/score';
-import type { ScoreStore } from './scores';import {
+/** 娱乐分存档的最小接口：服务端传 ScoreStore，网页内跑主机时可不传 */
+export interface ScoreSink {
+  bump(id: string, name: string, gameId: string, delta: number, won: boolean): ScoreSummary;
+  summary(id: string): ScoreSummary;
+}
+
+/** 房间落盘的抽象：服务端用文件，网页内主机用 IndexedDB 或内存 */
+export interface RoomPersist {
+  list(): string[];
+  read(code: string): unknown;
+  write(code: string, data: unknown): void;
+  remove(code: string): void;
+}import {
   AVATARS,
   CHAT_HISTORY,
   EMOTES,
@@ -26,7 +36,6 @@ import type { ScoreStore } from './scores';import {
   isAvatarId,
   normalizeRoomCode,
 } from '@park/protocol';
-import { randomBytes } from 'node:crypto';
 
 /** 一个连接到服务器的玩家（以 token 识别，断线重连后身份不变）。 */
 export interface Client {
@@ -55,7 +64,9 @@ export interface ServerConfig {
   /** 房间里没有在线真人多久后删除 */
   roomIdleMs: number;
   /** 娱乐分存档；不传则只在本局内存里统计（测试用） */
-  scores?: ScoreStore;
+  scores?: ScoreSink;
+  /** 房间落盘；不传就纯内存（网页内主机默认走内存） */
+  persist?: RoomPersist;
   log?: (...args: unknown[]) => void;
 }
 
@@ -78,8 +89,19 @@ function botSeat(seats: SeatInfo[]): SeatState {
   return { kind: 'bot', name: a.botName, avatar: a.id };
 }
 
+function randomBytes(n: number): Uint8Array {
+  const out = new Uint8Array(n);
+  const c = globalThis.crypto;
+  if (c?.getRandomValues) c.getRandomValues(out);
+  else for (let i = 0; i < n; i++) out[i] = Math.floor(Math.random() * 256);
+  return out;
+}
+
 function randomId(bytes = 9): string {
-  return randomBytes(bytes).toString('base64url');
+  const b = randomBytes(bytes);
+  let out = '';
+  for (const x of b) out += x.toString(16).padStart(2, '0');
+  return out;
 }
 
 function cleanName(name: unknown): string {
@@ -344,13 +366,8 @@ export class Hub {
    * 服务端把每间房的座位、选项、娱乐分写到 `<PARK_DATA_DIR>/rooms/<房号>.json`。
    * 进程重启、或换一台设备当主机（同一个数据目录）时，房间还在，玩家凭房号就能重新坐下。
    */
-  private roomsDir(): string {
-    const base = process.env.PARK_DATA_DIR || join(process.cwd(), 'data');
-    return join(base, 'rooms');
-  }
-
   touch(room: Room): void {
-    if (process.env.PARK_ROOMS_PERSIST === '0') return;
+    if (!this.config.persist) return;
     const prev = this.saveTimers.get(room.code);
     if (prev) clearTimeout(prev);
     this.saveTimers.set(
@@ -364,12 +381,7 @@ export class Hub {
 
   private writeRoom(room: Room): void {
     try {
-      const dir = this.roomsDir();
-      mkdirSync(dir, { recursive: true });
-      const file = join(dir, `${room.code}.json`);
-      const tmp = `${file}.tmp`;
-      writeFileSync(tmp, JSON.stringify(room.diskState()));
-      renameSync(tmp, file);
+      this.config.persist?.write(room.code, room.diskState());
     } catch (e) {
       this.config.log?.('[room] persist failed', room.code, e);
     }
@@ -381,7 +393,8 @@ export class Hub {
     if (existing) return existing;
     let raw: Record<string, unknown>;
     try {
-      raw = JSON.parse(readFileSync(join(this.roomsDir(), `${code}.json`), 'utf8')) as Record<string, unknown>;
+      raw = (this.config.persist?.read(code) ?? null) as Record<string, unknown>;
+      if (!raw) return undefined;
     } catch {
       return undefined;
     }
@@ -408,12 +421,9 @@ export class Hub {
   restoreRooms(): number {
     let n = 0;
     try {
-      for (const f of readdirSync(this.roomsDir())) {
-        if (!f.endsWith('.json')) continue;
-        if (this.adoptRoom(f.slice(0, -'.json'.length))) n++;
-      }
+      for (const code of this.config.persist?.list() ?? []) if (this.adoptRoom(code)) n++;
     } catch {
-      /* 没有目录就是第一次启动 */
+      /* 没有存档就是第一次启动 */
     }
     return n;
   }
@@ -423,7 +433,7 @@ export class Hub {
     if (t) clearTimeout(t);
     this.saveTimers.delete(code);
     try {
-      unlinkSync(join(this.roomsDir(), `${code}.json`));
+      this.config.persist?.remove(code);
     } catch {
       /* 已经没了 */
     }

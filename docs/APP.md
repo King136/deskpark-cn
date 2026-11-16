@@ -127,3 +127,14 @@ adb install -r 闲亭-debug.apk
 - 房间真正解散（`removeRoom`）时才删文件，不会留下幽灵房。
 - `GET /api/lan` 返回 `{app, name, rooms:[{code, gameId, seats, humans, status}]}`：其它设备/坞站可以用它做「这台上能开房」的自发现；App 里「联机与局域网 · 探测主机」就是打这个端点。
 - 边界：手机自己当主机需要原生 TCP/UDP 监听，WebView 做不到；当前方案是「谁跑服务端谁当主机，数据目录一致即可接棒」，与 `docs/HOST.md` 里的模拟器接管线配合使用。
+
+## 手机当主机（ParkHost）
+
+不引入 Node 运行时，走「JS 引擎 + 原生 socket 壳」：
+
+- `apps/web/src/lib/hostCore.ts`：直接复用 `@park/server` 的 `Hub`（`rooms.ts`），协议/座位/娱乐分与线上服务端是同一份实现；`Hub` 的落盘、随机数改成可注入，服务端仍用文件，网页内主机用内存。
+- `apps/web/src/lib/localHost.ts`：Capacitor 插件 `ParkHost` 的 JS 封装，负责 start/stop/send 与 `hostEvent` 收包。
+- Android `host/HostServer.java`：纯 JDK 的 WebSocket 服务端（握手 + 文本帧 + 16 位/64 位长度 + ping/pong），只做字节搬运；`host/ParkHostPlugin.java` 把连接事件推给 JS。
+- 主机开着时加 `FLAG_KEEP_SCREEN_ON`，避免熄屏把 WebView 挂起带走主机；App 退出会停掉主机。
+- 已验证：`apps/web/test/hostCore.test.ts`（建房/加入/错误房号/断线留房、真实协议）；`HostServer` 用 JDK21 + `ws` 客户端跑过握手与 100/400 字节回显。
+- 边界：不是前台服务，Android 把 App 彻底划掉时主机会停；跨网段、热点隔离的 AP 仍然连不通——这属于网络本身，不是协议问题。

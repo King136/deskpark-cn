@@ -14,6 +14,14 @@ import { profile, settings } from '../lib/store';
 import type { FeltTheme } from '../lib/store';
 import { online } from '../lib/online';
 import { getServerOverride, isWebview, serverUrl, setServerOverride } from '../lib/platform';
+import {
+  currentHost,
+  hostAvailable,
+  localWsUrl,
+  startHost,
+  stopHost,
+  type HostState,
+} from '../lib/localHost';
 
 export const FELTS: { value: FeltTheme; label: string; color: string }[] = [
   { value: 'jade', label: '墨绿', color: '#2a6152' },
@@ -265,6 +273,7 @@ export function ServerSection() {
   const [value, setValue] = useState(() => getServerOverride());
   const [now, setNow] = useState(() => getServerOverride());
   const [probe, setProbe] = useState('');
+  const [host, setHost] = useState<HostState>(() => currentHost());
   const native = isWebview();
 
   /* 局域网自发现：问一句这台主机「你在吗、有几间房」 */
@@ -325,6 +334,45 @@ export function ServerSection() {
             探测主机
           </Button>
         </div>
+        {hostAvailable() && (
+          <div className="server-host">
+            <div className="server-host__row">
+              <span>
+                本机当主机
+                <small>{host.running ? '正在跑房间，朋友填下面的地址' : '没有服务端时，让这台手机来开房'}</small>
+              </span>
+              <Button
+                size="sm"
+                variant={host.running ? 'ghost' : 'primary'}
+                onClick={() => {
+                  if (host.running) {
+                    void stopHost().then(() => {
+                      setHost(currentHost());
+                      if (serverUrl().includes('127.0.0.1')) apply('');
+                      toast('主机已停止');
+                    });
+                    return;
+                  }
+                  void startHost(8787)
+                    .then((st) => {
+                      setHost(st);
+                      apply(localWsUrl(st.port));
+                      toast(`主机已开：${st.addresses[0] ?? ''}`);
+                    })
+                    .catch((e: unknown) => toast(`开主机失败：${(e as Error).message}`, 'error'));
+                }}
+              >
+                {host.running ? '停止' : '把本机变成主机'}
+              </Button>
+            </div>
+            {host.running && (
+              <p className="server-host__addr">
+                朋友在「联机服务器」里填：<b>{host.addresses.join(' / ') || '—'}</b>
+                {host.rooms.length > 0 && `　当前 ${host.rooms.length} 间房`}
+              </p>
+            )}
+          </div>
+        )}
         {probe && <small className="server-field__now">{probe}</small>}
         <small className="server-field__now">
           当前：{serverUrl()}
