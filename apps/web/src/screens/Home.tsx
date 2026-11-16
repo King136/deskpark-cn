@@ -13,6 +13,7 @@ import type { GameUI } from '../games';
 import { GAME_UIS } from '../games';
 import { clearSavedLocal, loadSavedLocal } from '../lib/controller';
 import { online, useOnline } from '../lib/online';
+import { currentHost, hostAvailable, startHost } from '../lib/localHost';
 import { serverUrl, setServerOverride } from '../lib/platform';
 import { scanLan, type FoundHost } from '../lib/discover';
 import { navigate } from '../lib/router';
