@@ -30,6 +30,15 @@ public final class HostRuntime {
         return server != null ? server.getPort() : 8787;
     }
 
+    /** 网页层把房间摘要同步过来，/api/lan 才能报告真实房间数 */
+    public static synchronized void setLan(String json) {
+        if (server != null) server.setLan(json);
+    }
+
+    public static synchronized java.util.List<String> addresses() {
+        return HostServer.addresses(port());
+    }
+
     public static synchronized boolean send(String session, String text) {
         return server != null && server.send(session, text);
     }

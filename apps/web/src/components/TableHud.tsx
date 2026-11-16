@@ -20,6 +20,7 @@ export interface TableHudProps {
     messages: ChatMessage[];
     myId: string | null;
     onSend: (text: string) => void;
+    onEmote?: (emote: string) => void;
     unread: number;
   };
   onToggle: () => void;
@@ -107,6 +108,7 @@ export function TableHud({
   onGrab,
 }: TableHudProps) {
   const online_ = useOnline();
+  const onEmote = chat.onEmote;
   const [emoji, setEmoji] = useState(false);
   const v = (ctl.view ?? {}) as Record<string, unknown>;
   const turn = activeSeat(v);
@@ -171,7 +173,7 @@ export function TableHud({
               <button
                 key={e}
                 onClick={() => {
-                  online.send({ t: 'emote', emote: e });
+                  onEmote?.(e);
                   setEmoji(false);
                 }}
               >

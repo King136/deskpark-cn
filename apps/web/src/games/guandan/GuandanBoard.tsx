@@ -328,13 +328,16 @@ function RoundResult({
             )}
           </>
         ) : spectator ? undefined : (
-          <Button
-            variant="primary"
-            disabled={v.ready[me]}
-            onClick={() => ctl.act({ type: 'ready' })}
-          >
-            {v.ready[me] ? `等待其他玩家 ${readyCount}/4` : '继续下一局'}
-          </Button>
+          <>
+            <Button onClick={() => ctl.leave()}>返回大厅</Button>
+            <Button
+              variant="primary"
+              disabled={v.ready[me]}
+              onClick={() => ctl.act({ type: 'ready' })}
+            >
+              {v.ready[me] ? `等待其他玩家 ${readyCount}/4` : '继续下一局'}
+            </Button>
+          </>
         )
       }
     >

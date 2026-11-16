@@ -14,6 +14,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { currentCue, subscribeCallout, type Cue } from '../lib/callout';
 import { useEffect, useRef, useState } from 'react';
 import { MatchScoreCard, MyScoreCard, RoomScoreTable } from '../components/ScoreBoard';
 import { TableHud } from '../components/TableHud';
@@ -76,6 +77,8 @@ export function TableShell({
   const [dismissedScore, setDismissedScore] = useState(0);
   const net = useOnline();
   const online_ = ctl.mode === 'online';
+  const [cue, setCue] = useState<Cue | null>(() => currentCue());
+  useEffect(() => subscribeCallout(setCue), []);
 
   /* ---------------- 宿主交权 / 屏幕旋转 ---------------- */
   /** 工具条与交互区是否由本页自己画；宿主可用 postMessage 关掉 */
@@ -437,6 +440,11 @@ export function TableShell({
           )}
           <div className="board__stage" style={stageStyle}>
             {children}
+            {cue && (
+              <div className="callout-balloon" key={cue.id} aria-live="polite">
+                {cue.text}
+              </div>
+            )}
           </div>
         </main>
 
@@ -450,6 +458,10 @@ export function TableShell({
             messages: chatMessages,
             myId: myChatId,
             onSend: sendChat,
+            onEmote: (emote) => {
+              pushLocal(ctl.seat ?? 0, emote);
+              if (online_ && net.status === 'open') online.send({ t: 'emote', emote });
+            },
             unread: dock === 'open' ? 0 : incoming.length,
           }}
           onToggle={toggleDock}

@@ -694,3 +694,44 @@ html.park-table #root {
   box-shadow: 0 12px 24px rgba(8, 18, 14, 0.3);
   will-change: transform, opacity;
 }
+
+/* ---------- 报牌气泡：语音之外的「看得见」 ---------- */
+@keyframes park-cue {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.86);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.02);
+  }
+  30% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -14px) scale(0.98);
+  }
+}
+.callout-balloon {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  z-index: 8;
+  padding: 7px 16px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: #2b1f0d;
+  background: linear-gradient(180deg, #f3d9a4, #d9b977);
+  box-shadow:
+    0 10px 24px rgba(10, 20, 16, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation: park-cue 1.5s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  pointer-events: none;
+  white-space: nowrap;
+}

@@ -17,6 +17,7 @@ interface ParkHostPlugin {
   stop(): Promise<void>;
   send(options: { session: string; data: string }): Promise<void>;
   status(): Promise<{ running: boolean; port: number; addresses: string[] }>;
+  setLan(options: { json: string }): Promise<void>;
   addListener(
     event: 'hostEvent',
     cb: (e: HostEvent) => void,
@@ -45,6 +46,11 @@ let state: HostState = { running: false, port: 8787, addresses: [], rooms: [] };
 const subs = new Set<(s: HostState) => void>();
 const emit = () => {
   state.rooms = core?.rooms() ?? [];
+  if (state.running) {
+    void Native.setLan({
+      json: JSON.stringify({ name: '闲亭主机', rooms: state.rooms, port: state.port }),
+    }).catch(() => {});
+  }
   for (const f of subs) f({ ...state });
 };
 

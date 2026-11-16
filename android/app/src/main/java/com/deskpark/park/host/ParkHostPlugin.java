@@ -138,4 +138,11 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
         if (data != null) e.put("data", data);
         notifyListeners("hostEvent", e);
     }
+
+  /** 网页层同步房间摘要，供 /api/lan 探测使用 */
+  @PluginMethod
+  public void setLan(PluginCall call) {
+    HostRuntime.setLan(call.getString("json", "{\"name\":\"闲亭\",\"rooms\":[]}"));
+    call.resolve();
+  }
 }

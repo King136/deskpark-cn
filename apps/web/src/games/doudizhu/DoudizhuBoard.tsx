@@ -175,7 +175,9 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
     const nodes = [...sel]
       .map((id) => document.querySelector<HTMLElement>(`.ddz__hand [data-cid="${id}"]`))
       .filter((n): n is HTMLElement => !!n);
-    const zone = document.querySelector<HTMLElement>('.ddz__zone.is-me');
+    const zone =
+      document.querySelector<HTMLElement>('.ddz__center') ??
+      document.querySelector<HTMLElement>('.ddz__zone.is-me');
     flyCards(nodes, zone?.getBoundingClientRect() ?? null);
     if (act({ type: 'play', cards: [...sel] })) setSel(new Set());
   };
@@ -403,13 +405,16 @@ function RoundResult({
             )}
           </>
         ) : spectator ? undefined : (
-          <Button
-            variant="primary"
-            disabled={v.ready[me]}
-            onClick={() => ctl.act({ type: 'ready' })}
-          >
-            {v.ready[me] ? `等待其他玩家 ${readyCount}/3` : '继续下一局'}
-          </Button>
+          <>
+            <Button onClick={() => ctl.leave()}>返回大厅</Button>
+            <Button
+              variant="primary"
+              disabled={v.ready[me]}
+              onClick={() => ctl.act({ type: 'ready' })}
+            >
+              {v.ready[me] ? `等待其他玩家 ${readyCount}/3` : '继续下一局'}
+            </Button>
+          </>
         )
       }
     >

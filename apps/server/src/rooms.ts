@@ -651,7 +651,11 @@ export class Hub {
       }
     }
 
-    if (!room) return this.error(c, '你不在房间中');
+    if (!room) {
+      // 掉线重连、房间被别的设备接管时，聊天/表情不该弹错：静默丢弃，客户端会本地回显
+      if (msg.t === 'chat' || msg.t === 'emote') return;
+      return this.error(c, '你不在房间中');
+    }
     const isHost = room.hostId === c.id;
     const seat = room.seatOf(c.id);
     const waiting = room.status !== 'playing';

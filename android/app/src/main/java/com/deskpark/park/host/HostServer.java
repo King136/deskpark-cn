@@ -43,6 +43,7 @@ public class HostServer {
     private final AtomicLong seq = new AtomicLong();
     private volatile boolean running;
     private ServerSocket server;
+    private volatile String lanJson = "{\"name\":\"闲亭\",\"rooms\":[]}";
 
     public HostServer(int port, Listener listener) {
         this.port = port;
@@ -61,6 +62,11 @@ public class HostServer {
         Thread acceptor = new Thread(this::acceptLoop, "park-host-accept");
         acceptor.setDaemon(true);
         acceptor.start();
+    }
+
+    /** 让网页层把当前房间摘要写进来，/api/lan 就能报告真实房间数 */
+    public void setLan(String json) {
+        if (json != null && !json.isEmpty()) lanJson = json;
     }
 
     public void stop() {
@@ -99,16 +105,32 @@ public class HostServer {
     public static List<String> addresses(int port) {
         List<String> out = new ArrayList<>();
         try {
+            List<String> wifi = new ArrayList<>();
+            List<String> other = new ArrayList<>();
             for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 if (!ni.isUp() || ni.isLoopback()) continue;
+                String niName = ni.getName() == null ? "" : ni.getName().toLowerCase();
+                // 蜂窝、虚拟网卡上的地址朋友连不到，排除掉只留 Wi-Fi / 以太网
+                boolean cellular = niName.startsWith("rmnet") || niName.startsWith("ccmni")
+                        || niName.startsWith("dummy") || niName.startsWith("p2p");
                 for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
-                    if (addr.isLoopbackAddress() || addr.getHostAddress() == null) continue;
+                    if (addr.isLoopbackAddress() || addr.isLinkLocalAddress() || addr.getHostAddress() == null) continue;
                     String host = addr.getHostAddress();
                     if (host.contains(":")) continue; // IPv6 暂不提供给用户
                     String item = host + ":" + port;
-                    if (!out.contains(item)) out.add(item);
+                    boolean priv = host.startsWith("192.168.") || host.startsWith("10.")
+                            || host.startsWith("172.16.") || host.startsWith("172.17.") || host.startsWith("172.18.")
+                            || host.startsWith("172.19.") || host.startsWith("172.2") || host.startsWith("172.30.")
+                            || host.startsWith("172.31.");
+                    if (!cellular && priv) {
+                        if (!wifi.contains(item)) wifi.add(item);
+                    } else if (!cellular) {
+                        if (!other.contains(item)) other.add(item);
+                    }
                 }
             }
+            out.addAll(wifi);
+            out.addAll(other);
         } catch (Exception ignored) {
         }
         if (out.isEmpty()) out.add("127.0.0.1:" + port);
@@ -147,6 +169,37 @@ public class HostServer {
             }
         }
 
+        /** 同一端口兼顾 HTTP：给浏览器/其它手机一个可探测的应答 */
+        private void serveHttp(String requestLine, String head) throws IOException {
+            String path = "/";
+            String[] parts = requestLine.split(" ");
+            if (parts.length >= 2) path = parts[1];
+            String cors = "Access-Control-Allow-Origin: *\r\n"
+                    + "Access-Control-Allow-Headers: *\r\n"
+                    + "Cache-Control: no-store\r\n"
+                    + "Connection: close\r\n";
+            if (path.startsWith("/api/lan")) {
+                byte[] body = lanJson.getBytes(StandardCharsets.UTF_8);
+                out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\n"
+                        + cors + "Content-Length: " + body.length + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                out.write(body);
+            } else if (path.equals("/health")) {
+                out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n"
+                        + cors + "Content-Length: 2\r\n\r\nok").getBytes(StandardCharsets.UTF_8));
+            } else {
+                String html = "<!doctype html><meta charset=utf-8><title>闲亭主机</title>"
+                        + "<body style='font:16px/1.6 system-ui;padding:24px;background:#f6f2e8;color:#20302a'>"
+                        + "<h2>闲亭 · 这台手机正在当主机</h2>"
+                        + "<p>WebSocket 端口已经开着。朋友在自己手机的「我的 → 联机与局域网」里填本机地址即可入座。</p>"
+                        + "<p><a href='/api/lan'>查看房间状态</a></p></body>";
+                byte[] body = html.getBytes(StandardCharsets.UTF_8);
+                out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
+                        + cors + "Content-Length: " + body.length + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                out.write(body);
+            }
+            out.flush();
+        }
+
         private String readAsciiUntilBlank() throws IOException {
             ByteArrayOutputStream buf = new ByteArrayOutputStream();
             int c;
@@ -162,6 +215,12 @@ public class HostServer {
         private boolean handshake() throws Exception {
             String req = readAsciiUntilBlank();
             if (req.isEmpty()) return false;
+            String firstLine = req.split("\r\n")[0];
+            if (!req.toLowerCase().contains("sec-websocket-key:")) {
+                serveHttp(firstLine, req);
+                return false;
+            }
+            if (firstLine.isEmpty()) return false;
             String key = null;
             for (String line : req.split("\r\n")) {
                 String lower = line.toLowerCase();

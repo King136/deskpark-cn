@@ -366,10 +366,18 @@ export function ServerSection() {
               </Button>
             </div>
             {host.running && (
-              <p className="server-host__addr">
-                朋友在「联机服务器」里填：<b>{host.addresses.join(' / ') || '—'}</b>
-                {host.rooms.length > 0 && `　当前 ${host.rooms.length} 间房`}
-              </p>
+              <div className="server-host__addr">
+                <p>
+                  朋友在自己手机的「联机服务器」里填：<b>{host.addresses[0] ?? '—'}</b>
+                </p>
+                {host.addresses.length > 1 && (
+                  <p className="is-sub">备用：{host.addresses.slice(1).join(' / ')}</p>
+                )}
+                <p className="is-sub">
+                  两台手机要连同一个 Wi-Fi（关闭 VPN / 热点隔离），本机 IP 变了就重新看一眼这里。
+                  {host.rooms.length > 0 && `当前 ${host.rooms.length} 间房。`}
+                </p>
+              </div>
             )}
           </div>
         )}

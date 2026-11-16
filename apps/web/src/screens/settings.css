@@ -1,0 +1,16 @@
+
+.server-host__addr p {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.server-host__addr p.is-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.server-host__addr b {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  word-break: break-all;
+}

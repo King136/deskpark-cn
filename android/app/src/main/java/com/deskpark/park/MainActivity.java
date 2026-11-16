@@ -57,6 +57,30 @@ public class MainActivity extends BridgeActivity {
   /** 暴露给网页的宿主能力 */
   public class ParkHost {
 
+    private android.speech.tts.TextToSpeech tts;
+    private boolean ttsReady = false;
+
+    /** 报牌语音：WebView 本身不实现 SpeechSynthesis，这里用系统 TTS 兜住 */
+    @JavascriptInterface
+    public void speak(final String text) {
+      if (text == null || text.isEmpty()) return;
+      runOnUiThread(() -> {
+        try {
+          if (tts == null) {
+            tts = new android.speech.tts.TextToSpeech(getApplicationContext(), status -> {
+              ttsReady = status == android.speech.tts.TextToSpeech.SUCCESS;
+              if (ttsReady) tts.setLanguage(java.util.Locale.CHINA);
+            });
+            tts.setSpeechRate(1.12f);
+          }
+          if (ttsReady) {
+            tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "park-cue");
+          }
+        } catch (Throwable ignored) {
+        }
+      });
+    }
+
     @JavascriptInterface
     public void setOrientation(final String mode) {
       runOnUiThread(
