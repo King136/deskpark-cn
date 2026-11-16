@@ -146,12 +146,32 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
     call.resolve();
   }
 
+  private android.media.SoundPool pool;
+  private final java.util.Map<String, Integer> clipIds = new java.util.HashMap<>();
+
+  private void loadClips() {
+    try {
+      pool = new android.media.SoundPool.Builder().setMaxStreams(2).build();
+      android.content.res.AssetManager am = getContext().getAssets();
+      String[] names = am.list("public/clips");
+      if (names == null) return;
+      for (String f : names) {
+        if (!f.endsWith(".mp3")) continue;
+        String key = f.substring(0, f.length() - 4);
+        int id = pool.load(am.openFd("public/clips/" + f), 1);
+        clipIds.put(key, id);
+      }
+    } catch (Throwable ignored) {
+    }
+  }
+
   private android.speech.tts.TextToSpeech tts;
   private boolean ttsReady = false;
   private String pending = null;
 
   @Override
   public void load() {
+    loadClips();
     try {
       tts = new android.speech.tts.TextToSpeech(getContext(), status -> {
         ttsReady = status == android.speech.tts.TextToSpeech.SUCCESS;
@@ -172,6 +192,17 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
   /** 报牌语音（Capacitor 通道） */
   @PluginMethod
   public void speak(PluginCall call) {
+    final String key = call.getString("key", "");
+    if (key != null && !key.isEmpty() && pool != null && clipIds.containsKey(key)) {
+      try {
+        pool.play(clipIds.get(key), 1f, 1f, 1, 0, 1f);
+        JSObject ok = new JSObject();
+        ok.put("ok", true);
+        call.resolve(ok);
+        return;
+      } catch (Throwable ignored) {
+      }
+    }
     final String text = call.getString("text", "");
     if (text == null || text.isEmpty()) {
       call.resolve();
@@ -186,7 +217,9 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
         }
       } catch (Throwable ignored) {
       }
-      call.resolve();
+      JSObject ok = new JSObject();
+      ok.put("ok", ttsReady);
+      call.resolve(ok);
     });
   }
 }

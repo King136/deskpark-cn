@@ -34,7 +34,7 @@ interface NativeVoice {
 interface CapPlugins {
   Capacitor?: {
     Plugins?: {
-      ParkHost?: { speak?: (o: { text: string }) => Promise<{ ok?: boolean } | void> };
+      ParkHost?: { speak?: (o: { text: string; key?: string }) => Promise<{ ok?: boolean } | void> };
     };
   };
 }
@@ -43,11 +43,51 @@ interface CapPlugins {
  * 走 Capacitor 插件通道朗读。返回 true 表示"这座桥在且报成功"；
  * 插件存在但 TTS 引擎不可用时返回 false，让调用方退到兜底音，避免静默。
  */
-function pluginSpeak(text: string): boolean {
+/** 把报牌文案映射到内置音频片段，命中就直接播，零延迟、离线可用 */
+const CLIP_RULES: [RegExp, string][] = [
+  [/王炸/, 'wangzha'],
+  [/炸弹|炸/, 'zhadan'],
+  [/飞机/, 'feiji'],
+  [/连对/, 'liandui'],
+  [/顺子/, 'shun'],
+  [/三带/, 'sandai'],
+  [/三条|三张/, 'tiao'],
+  [/对子|一对/, 'dui'],
+  [/单张/, 'dan'],
+  [/报单/, 'baodan'],
+  [/报双/, 'baoshuang'],
+  [/不要|过/, 'bujiao'],
+  [/五连/, 'five'],
+  [/落子/, 'place'],
+  [/轮到你/, 'turn'],
+  [/赢了|拿下/, 'win'],
+  [/输了/, 'lose'],
+  [/开始/, 'ready'],
+];
+
+function clipKey(text: string): string {
+  for (const [re, key] of CLIP_RULES) if (re.test(text)) return key;
+  return '';
+}
+
+/** 网页端直接播内置 mp3（APK 里就是 assets/public/clips） */
+function playClip(key: string): boolean {
+  if (!key || !settings.get().sound) return false;
+  try {
+    const a = new Audio(`/clips/${key}.mp3`);
+    a.volume = 1;
+    void a.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function pluginSpeak(text: string, key = ''): boolean {
   const p = (globalThis as CapPlugins).Capacitor?.Plugins?.ParkHost;
   try {
     if (!p?.speak) return false;
-    void p.speak({ text }).then(
+    void p.speak({ text, key }).then(
       (r) => {
         if (r && r.ok === false) fallbackTone();
       },
@@ -136,7 +176,8 @@ export function callout(text: string, opts?: { force?: boolean }): void {
   showBalloon(text);
 
   if (!settings.get().sound && !opts?.force) return;
-  if (pluginSpeak(text) || nativeSpeak(text)) return;
+  const key = clipKey(text);
+  if (pluginSpeak(text, key) || nativeSpeak(text) || playClip(key)) return;
   try {
     const s = globalThis.speechSynthesis;
     if (!s) {

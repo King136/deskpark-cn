@@ -82,6 +82,33 @@ export const profile = createStore<Profile>('park.profile', {
 });
 // 首次访问时把随机生成的身份写入本地
 profile.set({});
+restoreFromNative('park.profile', profile);
+profile.subscribe(() => mirrorToNative('park.profile', profile.get()));
+settings.subscribe(() => mirrorToNative('park.settings', settings.get()));
+
+// 身份与设置镜像到原生 SharedPreferences：换壳、清 WebView 缓存都不会丢
+interface PrefHost {
+  getPref?: (k: string) => string | null;
+  setPref?: (k: string, v: string) => void;
+}
+
+function mirrorToNative(key: string, value: unknown) {
+  try {
+    (globalThis as { ParkHost?: PrefHost }).ParkHost?.setPref?.(key, JSON.stringify(value));
+  } catch {
+    /* ignore */
+  }
+}
+
+function restoreFromNative<T extends object>(key: string, store: { get: () => T; set: (p: Partial<T>) => void }) {
+  try {
+    const raw = (globalThis as { ParkHost?: PrefHost }).ParkHost?.getPref?.(key);
+    if (!raw) return;
+    store.set(JSON.parse(raw) as Partial<T>);
+  } catch {
+    /* ignore */
+  }
+}
 
 /** 上次使用的各玩法设置 */
 export const lastSetup = createStore<

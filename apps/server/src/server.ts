@@ -153,6 +153,34 @@ export function startServer(opts: StartOptions) {
 
   const http = createHttpServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://lan.local');
+    if (url.pathname === '/api/profile' && req.method === 'POST') {
+      // 用画像：只用请求里自然带的信息（UA、语言、时区、屏幕），不索取任何权限
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        try {
+          const raw = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Record<string, unknown>;
+          const dir = resolve(process.env.PARK_DATA_DIR ?? 'data');
+          mkdirSync(dir, { recursive: true });
+          const file = join(dir, 'profiles.ndjson');
+          const ua = String(raw.ua ?? '');
+          const os = /Android/i.test(ua) ? 'Android' : /iPhone|iPad/i.test(ua) ? 'iOS' : /Windows/i.test(ua) ? 'Windows' : /Mac/i.test(ua) ? 'macOS' : 'unknown';
+          const rec = {
+            ...raw,
+            os,
+            isMobile: /Mobile|Android|iPhone/i.test(ua),
+            firstGuess: os === 'Android' ? '安卓手机' : os === 'iOS' ? '苹果设备' : '桌面浏览器',
+            seenAt: new Date().toISOString(),
+          };
+          writeFileSync(file, JSON.stringify(rec) + '\n', { flag: 'a' });
+        } catch {
+          /* 画像失败不影响主流程 */
+        }
+        res.writeHead(204, { 'access-control-allow-origin': '*' }).end();
+      });
+      return;
+    }
+
     if (url.pathname === '/api/lan') {
       // 局域网自发现：其它设备/客户端探到这个端点，就知道这台上能开房
       const lan = {

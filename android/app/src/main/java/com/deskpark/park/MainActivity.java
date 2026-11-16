@@ -54,12 +54,38 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
+  /** 返回键先交给网页：网页决定是退一层、还是弹"确认退出" */
+  @Override
+  public void onBackPressed() {
+    android.webkit.WebView w = getBridge() != null ? getBridge().getWebView() : null;
+    if (w != null) {
+      w.evaluateJavascript("window.dispatchEvent(new Event('park:back'))", null);
+    }
+  }
+
   /** 暴露给网页的宿主能力 */
   public class ParkHost {
 
     private android.speech.tts.TextToSpeech tts;
     private boolean ttsReady = false;
     private String pendingSpeech = null;
+
+    /** 网页存档（昵称/设置等）镜像到原生，避免 WebView 清缓存后漂移 */
+    @android.webkit.JavascriptInterface
+    public String getPref(String key) {
+      return getSharedPreferences("park", MODE_PRIVATE).getString(key, null);
+    }
+
+    @android.webkit.JavascriptInterface
+    public void setPref(String key, String value) {
+      getSharedPreferences("park", MODE_PRIVATE).edit().putString(key, value).apply();
+    }
+
+    /** 网页确认退出后，真正结束 App */
+    @android.webkit.JavascriptInterface
+    public void exit() {
+      runOnUiThread(() -> finishAffinity());
+    }
 
     /** 本机局域网 IPv4（Wi-Fi 网段），网页据此扫描同网段的主机 */
     @android.webkit.JavascriptInterface

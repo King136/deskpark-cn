@@ -273,14 +273,10 @@ export function Home() {
       <div className="main">
         <header className="main__top">
           <div className="brand">
-            <PavilionMark size={30} className="brand__mark" />
+            <PavilionMark size={44} className="brand__mark" />
             <span className="brand__text">
               <strong>闲亭</strong>
-              <small>
-                与你的亲友，或 AI，
-                <br />
-                来一局
-              </small>
+              <small>与你的亲友，或 AI，来一局</small>
             </span>
           </div>
           <div className="main__me">
