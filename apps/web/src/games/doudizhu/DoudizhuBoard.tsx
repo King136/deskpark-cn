@@ -8,6 +8,7 @@ import { Avatar, Seat } from '../../components/Seat';
 import { Button, Sheet, toast } from '../../components/ui';
 import type { GameController } from '../../lib/controller';
 import { signed } from '../../lib/format';
+import { callout, primeVoice } from '../../lib/callout';
 import { playSound } from '../../lib/sound';
 import { settings } from '../../lib/store';
 import { CountChip, MoveZone, useHintCycle, useSelection, useTurnCue } from '../shared/trick';
@@ -103,8 +104,34 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
   const lastPlayKey = v.lastPlay ? v.lastPlay.cards.map((c) => c.id).join(',') : '';
   useEffect(() => {
     const k = v.lastPlay?.pattern.kind;
-    if (k === 'bomb' || k === 'rocket') playSound('bomb');
+    if (k === 'bomb') {
+      playSound('bomb');
+      callout('炸弹');
+    } else if (k === 'rocket') {
+      playSound('bomb');
+      callout('王炸');
+    }
   }, [lastPlayKey, v.lastPlay?.pattern.kind]);
+
+  // 报牌：有人只剩一两张时喊一声，和线下打牌一致
+  const counts = v.handCounts?.join(',') ?? '';
+  const reported = useRef('');
+  useEffect(() => {
+    if (over || spectator || !counts) return;
+    for (let s = 0; s < 3; s++) {
+      const n = v.handCounts[s];
+      if ((n === 1 || n === 2) && reported.current !== `${s}:${n}:${v.round}`) {
+        reported.current = `${s}:${n}:${v.round}`;
+        callout(`${players[s]?.name ?? ''} 报${n === 1 ? '单' : '双'}`);
+        return;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counts, over]);
+
+  useEffect(() => {
+    primeVoice();
+  }, []);
   const resultRound = useRef(0);
   useEffect(() => {
     const r = v.result;
@@ -122,7 +149,10 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
     if (act({ type: 'play', cards: [...sel] })) setSel(new Set());
   };
   const doPass = () => {
-    if (act({ type: 'pass' })) setSel(new Set());
+    if (act({ type: 'pass' })) {
+      setSel(new Set());
+      callout('要不起');
+    }
   };
   const doHint = () => {
     const h = nextHint();

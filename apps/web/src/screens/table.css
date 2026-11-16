@@ -623,3 +623,61 @@ html.park-table body,
 html.park-table #root {
   background: #0d241f;
 }
+
+/* ---------- 动作条：主次分明，按下去有回弹 ---------- */
+.action-bar .btn {
+  min-width: 88px;
+  height: 44px;
+  border-radius: 99px;
+  letter-spacing: 0.02em;
+  transition:
+    transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1),
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+.action-bar .btn--felt-primary {
+  min-width: 108px;
+  font-weight: 600;
+  box-shadow:
+    0 6px 16px rgba(20, 40, 32, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.action-bar .btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.action-bar .btn:disabled {
+  opacity: 0.45;
+}
+
+/* 关键动作轻轻呼吸，让「该你了」更明显 */
+@keyframes park-cta {
+  0%,
+  100% {
+    box-shadow:
+      0 6px 16px rgba(20, 40, 32, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+  50% {
+    box-shadow:
+      0 8px 22px rgba(20, 40, 32, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+}
+.action-bar .btn--felt-primary:not(:disabled) {
+  animation: park-cta 2.4s ease-in-out infinite;
+}
+
+/* ---------- 别人打出的牌：轻轻落桌 ---------- */
+@keyframes park-land {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.cardrow > .pcard {
+  animation: park-land 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}

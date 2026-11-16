@@ -759,11 +759,21 @@
   color: var(--felt-ink);
 }
 .count-chip i {
-  width: 9px;
-  height: 12px;
+  position: relative;
+  width: 10px;
+  height: 13px;
   border-radius: 2px;
-  background: linear-gradient(160deg, var(--card-back-1), var(--card-back-2));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);
+  background: linear-gradient(160deg, #3a7a5e, #17402f);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.42),
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.16);
+}
+.count-chip i::after {
+  content: '';
+  position: absolute;
+  inset: 4px 3px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.22);
 }
 .count-chip.is-warn {
   color: #ffb39f;
