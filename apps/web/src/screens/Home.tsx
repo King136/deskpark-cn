@@ -3,7 +3,7 @@ import { getGame } from '@park/engine';
 import { normalizeRoomCode } from '@park/protocol';
 import { ArrowRight, Gamepad2, Play, Settings2, Users } from 'lucide-react';
 import type { CSSProperties } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PlayingCard } from '../components/PlayingCard';
 import { PavilionMark } from '../components/Brand';
 import { MahjongTile } from '../components/MahjongTile';
@@ -13,11 +13,22 @@ import type { GameUI } from '../games';
 import { GAME_UIS } from '../games';
 import { clearSavedLocal, loadSavedLocal } from '../lib/controller';
 import { online, useOnline } from '../lib/online';
+import { serverUrl } from '../lib/platform';
 import { navigate } from '../lib/router';
 import { VERSION_TEXT } from '../lib/version';
 import { profile } from '../lib/store';
 import { markFreshStart } from './LocalGame';
 import { SettingsSheet } from './SettingsSheet';
+
+/** 玩法怎么组队，房号卡片上直接讲清楚，省得进去才发现没有搭档 */
+const TEAM_NOTE: Record<string, string> = {
+  doudizhu: '地主 vs 两位农民，不结固定搭档',
+  guandan: '2v2 同桌，系统自动配队，可能与房主搭档',
+  shengji: '对家是搭档，按座位配对',
+  mahjong: '各自为战，四家独立计分',
+  chess: '一对一，无搭档',
+  gomoku: '一对一，无搭档',
+};
 import { SetupSheet } from './SetupSheet';
 import './home.css';
 
@@ -125,6 +136,47 @@ export function Home() {
     if (c.length === 4) navigate(`/room/${c}`);
   };
 
+  // 房号输入满 4 位就实时问主机：这间房在不在、什么玩法、几个人
+  const [room, setRoom] = useState<null | {
+    code: string;
+    gameId: string;
+    seats: number;
+    humans: number;
+    status: string;
+    players?: (string | null)[];
+  }>(null);
+  const [probing, setProbing] = useState(false);
+  useEffect(() => {
+    if (code.length !== 4) {
+      setRoom(null);
+      return;
+    }
+    let alive = true;
+    const look = async () => {
+      try {
+        const base = new URL(serverUrl().replace(/^ws/, 'http'));
+        const origin = `${base.protocol}//${base.host}`;
+        const res = await fetch(`${origin}/api/lan?code=${code}`, { cache: 'no-store' });
+        const data = (await res.json()) as { rooms?: (typeof room)[] };
+        if (!alive) return;
+        setRoom((data.rooms ?? []).find((r) => r?.code === code) ?? null);
+        setProbing(false);
+      } catch {
+        if (alive) {
+          setRoom(null);
+          setProbing(false);
+        }
+      }
+    };
+    setProbing(true);
+    void look();
+    const timer = setInterval(look, 2500);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [code]);
+
   const groups = CATEGORIES.map((c) => ({
     ...c,
     games: GAME_UIS.filter((g) => getGame(g.id)?.meta.category === c.id),
@@ -188,6 +240,34 @@ export function Home() {
             加入 <ArrowRight size={15} />
           </Button>
         </form>
+        {code.length === 4 && (
+          <div className={`join-card${room ? ' is-live' : ''}`}>
+            {room ? (
+              <>
+                <div className="join-card__main">
+                  <b>{getGame(room.gameId)?.meta.name ?? '未知玩法'}</b>
+                  <span>
+                    {room.status === 'playing' ? '对局中，可进去观战' : '等人开局'} ·{' '}
+                    {room.humans}/{room.seats} 人
+                    {TEAM_NOTE[room.gameId] ? ` · ${TEAM_NOTE[room.gameId]}` : ''}
+                  </span>
+                </div>
+                <div className="join-card__who">
+                  {(room.players ?? [])
+                    .filter((n): n is string => !!n)
+                    .join('、') || '还没有人入座'}
+                </div>
+                <Button variant="primary" size="sm" onClick={join}>
+                  进入房间 <ArrowRight size={14} />
+                </Button>
+              </>
+            ) : (
+              <span className="join-card__hint">
+                {probing ? '正在问主机…' : '主机上没有这个房号，确认房间号或让房主重开一次'}
+              </span>
+            )}
+          </div>
+        )}
       </section>
 
       {net.room && (

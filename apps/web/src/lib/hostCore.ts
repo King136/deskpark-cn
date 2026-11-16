@@ -54,6 +54,7 @@ export class HostCore {
       humans: r.seats.filter((s) => s.kind === 'human').length,
       seats: r.seats.length,
       status: r.status,
+      players: r.seats.map((s2) => (s2.kind === 'human' ? s2.name : null)),
     }));
   }
 

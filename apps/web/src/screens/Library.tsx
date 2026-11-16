@@ -2,6 +2,7 @@ import { ChevronLeft, Download, FolderOpen, Gamepad2, MoreHorizontal, Play, Tras
 import { useEffect, useRef, useState } from 'react';
 import { Button, IconButton, Segmented, Sheet, toast } from '../components/ui';
 import { navigate } from '../lib/router';
+import { serverUrl } from '../lib/platform';
 import type { Platform, RomItem } from '../lib/roms';
 import {
   PLATFORM_LABEL,
@@ -30,6 +31,37 @@ export function Library() {
     void listRoms().then(setItems);
   };
   useEffect(reload, []);
+
+  // 主机（NAS / 手机）上的共享游戏库：以服务端为准，各设备按需拉一份
+  const [hostLib, setHostLib] = useState<{ name: string; size: number; url: string }[]>([]);
+  const loadHostLib = async () => {
+    try {
+      const base = new URL(serverUrl().replace(/^ws/, 'http'));
+      const origin = `${base.protocol}//${base.host}`;
+      const res = await fetch(`${origin}/api/library`, { cache: 'no-store' });
+      const data = (await res.json()) as { files?: { name: string; size: number; url: string }[] };
+      setHostLib(data.files ?? []);
+    } catch {
+      setHostLib([]);
+    }
+  };
+  useEffect(() => {
+    void loadHostLib();
+  }, []);
+  const pull = async (f: { name: string; url: string }) => {
+    setBusy(true);
+    try {
+      const base = new URL(serverUrl().replace(/^ws/, 'http'));
+      const blob = await (await fetch(`${base.protocol}//${base.host}${f.url}`)).blob();
+      await addRom(new File([blob], f.name));
+      reload();
+      toast(`已从主机导入 ${f.name}`);
+    } catch {
+      toast('主机库拉取失败，确认地址和网络', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const pick = async (files: FileList | null) => {
     if (!files?.length) return;
@@ -128,6 +160,29 @@ export function Library() {
             </li>
           ))}
         </ul>
+      )}
+
+      {hostLib.length > 0 && (
+        <section className="lib__host">
+          <header>
+            <b>主机游戏库</b>
+            <small>{hostLib.length} 个文件 · 以服务端为准</small>
+            <Button size="sm" variant="ghost" onClick={() => void loadHostLib()}>
+              刷新
+            </Button>
+          </header>
+          <ul>
+            {hostLib.map((f) => (
+              <li key={f.name}>
+                <span className="lib__name">{f.name}</span>
+                <small>{formatSize(f.size)}</small>
+                <Button size="sm" variant="secondary" disabled={busy} onClick={() => void pull(f)}>
+                  导入
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <section className="lib__row">

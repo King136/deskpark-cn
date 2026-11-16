@@ -114,6 +114,25 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
     }
   }, [lastPlayKey, v.lastPlay?.pattern.kind]);
 
+  // 每一手都播报：出牌报牌型，过牌报「不要」，这样语音和画面不会只在炸弹时出现
+  const movesSig = v.lastMoves.map((m) => (m ? m.type : '-')).join('|') + `#${v.round}`;
+  const seenMoves = useRef<Record<number, string>>({});
+  useEffect(() => {
+    if (over || spectator || v.phase !== 'playing') return;
+    for (let s = 0; s < 3; s++) {
+      const m = v.lastMoves[s];
+      const sig = m ? (m.type === 'play' ? `p:${m.kind}:${m.cards.length}` : 'pass') : '-';
+      if (seenMoves.current[s] === sig) continue;
+      seenMoves.current[s] = sig;
+      if (!m) continue;
+      if (m.type === 'pass') callout(`${players[s]?.name ?? ''} 不要`);
+      else if (m.kind === 'bomb') callout('炸弹');
+      else if (m.kind === 'rocket') callout('王炸');
+      else callout(`${players[s]?.name ?? ''} ${ddz.DDZ_KIND_NAME[m.kind]}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movesSig, over]);
+
   // 报牌：有人只剩一两张时喊一声，和线下打牌一致
   const counts = v.handCounts?.join(',') ?? '';
   const reported = useRef('');

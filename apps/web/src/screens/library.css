@@ -229,3 +229,41 @@
   border: 0;
   background: #000;
 }
+
+/* ---------- 主机共享游戏库 ---------- */
+.lib__host {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.lib__host header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.lib__host header b {
+  font-size: 13px;
+}
+.lib__host header small {
+  flex: 1;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.lib__host ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lib__host li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}

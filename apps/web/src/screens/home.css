@@ -403,3 +403,52 @@
     justify-content: flex-end;
   }
 }
+
+/* ---------- 房号实时预览 ---------- */
+.join-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  animation: join-card-in 0.2s ease both;
+}
+.join-card.is-live {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 40%, var(--line));
+}
+@keyframes join-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.join-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.join-card__main b {
+  font-size: 13.5px;
+}
+.join-card__main span {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.join-card__who {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.join-card__hint {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}

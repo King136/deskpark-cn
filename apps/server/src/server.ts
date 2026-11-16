@@ -1,5 +1,5 @@
 import type { ServerMessage } from '@park/protocol';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -132,8 +132,28 @@ export function startServer(opts: StartOptions) {
   if (restored) config.log?.('[room] restored', restored);
   const staticDir = opts.staticDir === null ? null : resolve(opts.staticDir ?? defaultStaticDir());
 
+  // 服务端游戏库：以主机为准，所有设备通过链接拉取同一个库
+  const libDir = resolve(process.env.PARK_DATA_DIR ?? 'data', 'library');
+  try {
+    mkdirSync(libDir, { recursive: true });
+  } catch {
+  }
+  const libList = () => {
+    try {
+      return readdirSync(libDir)
+        .filter((n) => !n.startsWith('.'))
+        .map((name) => {
+          const st = statSync(join(libDir, name));
+          return { name, size: st.size, mtime: st.mtimeMs, url: `/library/${encodeURIComponent(name)}` };
+        });
+    } catch {
+      return [];
+    }
+  };
+
   const http = createHttpServer((req, res) => {
-    if (req.url === '/api/lan') {
+    const url = new URL(req.url ?? '/', 'http://lan.local');
+    if (url.pathname === '/api/lan') {
       // 局域网自发现：其它设备/客户端探到这个端点，就知道这台上能开房
       const lan = {
         app: 'deskpark',
@@ -145,10 +165,62 @@ export function startServer(opts: StartOptions) {
           seats: r.seats.length,
           humans: r.seats.filter((s) => s.kind === 'human').length,
           status: r.status,
+          players: r.seats.map((s) => (s.kind === 'human' ? s.name : null)),
         })),
       };
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       res.end(JSON.stringify(lan));
+      return;
+    }
+    if (url.pathname === '/api/library') {
+      if (req.method === 'POST') {
+        const name = (url.searchParams.get('name') ?? '').replace(/[^\w.\-\u4e00-\u9fa5]/g, '');
+        if (!name) {
+          res.writeHead(400).end('bad name');
+          return;
+        }
+        const chunks: Buffer[] = [];
+        let size = 0;
+        req.on('data', (c: Buffer) => {
+          size += c.length;
+          if (size > 300 * 1024 * 1024) {
+            req.destroy();
+            return;
+          }
+          chunks.push(c);
+        });
+        req.on('end', () => {
+          try {
+            writeFileSync(join(libDir, name), Buffer.concat(chunks));
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end(JSON.stringify({ ok: true, files: libList() }));
+          } catch (e) {
+            res.writeHead(500).end(String(e));
+          }
+        });
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(JSON.stringify({ files: libList(), dir: 'data/library' }));
+      return;
+    }
+    if (url.pathname.startsWith('/library/')) {
+      const name = decodeURIComponent(url.pathname.slice('/library/'.length));
+      const target = join(libDir, name);
+      if (!target.startsWith(libDir) || !existsSync(target)) {
+        res.writeHead(404).end('not found');
+        return;
+      }
+      const ext = extname(target).toLowerCase();
+      res.writeHead(200, {
+        'content-type': MIME[ext] ?? 'application/octet-stream',
+        'content-length': statSync(target).size,
+        'accept-ranges': 'bytes',
+        'cache-control': 'public, max-age=3600',
+      });
+      createReadStream(target)
+        .on('error', () => res.destroy())
+        .pipe(res);
       return;
     }
     if (req.url === '/healthz') {

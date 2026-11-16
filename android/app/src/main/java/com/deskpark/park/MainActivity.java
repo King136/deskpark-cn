@@ -59,6 +59,7 @@ public class MainActivity extends BridgeActivity {
 
     private android.speech.tts.TextToSpeech tts;
     private boolean ttsReady = false;
+    private String pendingSpeech = null;
 
     /** 报牌语音：WebView 本身不实现 SpeechSynthesis，这里用系统 TTS 兜住 */
     @JavascriptInterface
@@ -69,12 +70,21 @@ public class MainActivity extends BridgeActivity {
           if (tts == null) {
             tts = new android.speech.tts.TextToSpeech(getApplicationContext(), status -> {
               ttsReady = status == android.speech.tts.TextToSpeech.SUCCESS;
-              if (ttsReady) tts.setLanguage(java.util.Locale.CHINA);
+              if (ttsReady && tts != null) {
+                tts.setLanguage(java.util.Locale.CHINA);
+                tts.setSpeechRate(1.12f);
+                tts.setPitch(1.02f);
+                if (pendingSpeech != null) {
+                  tts.speak(pendingSpeech, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "park-cue");
+                  pendingSpeech = null;
+                }
+              }
             });
-            tts.setSpeechRate(1.12f);
           }
           if (ttsReady) {
             tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "park-cue");
+          } else {
+            pendingSpeech = text; // 引擎还在初始化，留着等就绪再说
           }
         } catch (Throwable ignored) {
         }
