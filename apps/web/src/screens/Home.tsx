@@ -276,7 +276,7 @@ export function Home() {
             <PavilionMark size={30} className="brand__mark" />
             <span className="brand__text">
               <strong>闲亭</strong>
-              <small>DESKPARK</small>
+              <small>与你的亲友，或 AI，来一局</small>
             </span>
           </div>
           <div className="main__me">

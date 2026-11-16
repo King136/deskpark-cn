@@ -31,6 +31,23 @@ interface NativeVoice {
   speak?: (text: string) => void;
 }
 
+interface CapPlugins {
+  Capacitor?: { Plugins?: { ParkHost?: { speak?: (o: { text: string }) => Promise<unknown> } } };
+}
+
+function pluginSpeak(text: string): boolean {
+  const p = (globalThis as CapPlugins).Capacitor?.Plugins?.ParkHost;
+  try {
+    if (p?.speak) {
+      void p.speak({ text }).catch(() => {});
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 function nativeSpeak(text: string): boolean {
   const host = (globalThis as { ParkHost?: NativeVoice }).ParkHost;
   try {
@@ -108,7 +125,7 @@ export function callout(text: string, opts?: { force?: boolean }): void {
   showBalloon(text);
 
   if (!settings.get().sound && !opts?.force) return;
-  if (nativeSpeak(text)) return;
+  if (pluginSpeak(text) || nativeSpeak(text)) return;
   try {
     const s = globalThis.speechSynthesis;
     if (!s) {

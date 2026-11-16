@@ -145,4 +145,48 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
     HostRuntime.setLan(call.getString("json", "{\"name\":\"闲亭\",\"rooms\":[]}"));
     call.resolve();
   }
+
+  private android.speech.tts.TextToSpeech tts;
+  private boolean ttsReady = false;
+  private String pending = null;
+
+  @Override
+  public void load() {
+    try {
+      tts = new android.speech.tts.TextToSpeech(getContext(), status -> {
+        ttsReady = status == android.speech.tts.TextToSpeech.SUCCESS;
+        if (ttsReady && tts != null) {
+          tts.setLanguage(java.util.Locale.CHINA);
+          tts.setSpeechRate(1.12f);
+          tts.setPitch(1.02f);
+          if (pending != null) {
+            tts.speak(pending, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "park-cue");
+            pending = null;
+          }
+        }
+      });
+    } catch (Throwable ignored) {
+    }
+  }
+
+  /** 报牌语音（Capacitor 通道） */
+  @PluginMethod
+  public void speak(PluginCall call) {
+    final String text = call.getString("text", "");
+    if (text == null || text.isEmpty()) {
+      call.resolve();
+      return;
+    }
+    getActivity().runOnUiThread(() -> {
+      try {
+        if (ttsReady && tts != null) {
+          tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "park-cue");
+        } else {
+          pending = text;
+        }
+      } catch (Throwable ignored) {
+      }
+      call.resolve();
+    });
+  }
 }

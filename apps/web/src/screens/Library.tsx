@@ -200,6 +200,7 @@ export function Library() {
               <ChevronLeft size={18} /> 返回
             </button>
             <span>{play.name}</span>
+            <small className="lib__player-tip">触摸即操作 · 返回键可退出</small>
             <button onClick={() => setPlay(null)} aria-label="关闭">
               关闭
             </button>
