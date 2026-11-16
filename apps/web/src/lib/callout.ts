@@ -44,6 +44,48 @@ function nativeSpeak(text: string): boolean {
   return false;
 }
 
+let beep: AudioContext | null = null;
+function fallbackTone(): void {
+  try {
+    if (!settings.get().sound) return;
+    beep = beep ?? new AudioContext();
+    const ac = beep;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = 740;
+    g.gain.setValueAtTime(0.0001, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.14, ac.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.12);
+    osc.connect(g).connect(ac.destination);
+    osc.start();
+    osc.stop(ac.currentTime + 0.14);
+  } catch {
+    /* 没有音频上下文也不影响文字 */
+  }
+}
+
+/** 屏幕上的报牌气泡：直接创建 DOM，任何页面外壳都看得到 */
+function showBalloon(text: string): void {
+  try {
+    const doc = document;
+    let layer = doc.getElementById('park-cue-layer');
+    if (!layer) {
+      layer = doc.createElement('div');
+      layer.id = 'park-cue-layer';
+      doc.body.appendChild(layer);
+    }
+    const node = doc.createElement('div');
+    node.className = 'park-cue';
+    node.textContent = text;
+    layer.appendChild(node);
+    setTimeout(() => node.remove(), 1600);
+    if (layer.childElementCount > 3) layer.firstElementChild?.remove();
+  } catch {
+    /* SSR / 无 DOM 时忽略 */
+  }
+}
+
 export function primeVoice(): void {
   try {
     globalThis.speechSynthesis?.getVoices();
@@ -63,12 +105,16 @@ export function callout(text: string, opts?: { force?: boolean }): void {
   // 画面上的报牌气泡：任何时候都出，保证「看得见」
   latest = { id: ++seq, text };
   for (const f of subs) f(latest);
+  showBalloon(text);
 
   if (!settings.get().sound && !opts?.force) return;
   if (nativeSpeak(text)) return;
   try {
     const s = globalThis.speechSynthesis;
-    if (!s) return;
+    if (!s) {
+      fallbackTone();
+      return;
+    }
     s.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'zh-CN';
@@ -76,7 +122,9 @@ export function callout(text: string, opts?: { force?: boolean }): void {
     u.pitch = 1.02;
     u.volume = 0.85;
     s.speak(u);
+    // 有些 WebView 有接口但不出声：同时给一声轻提示，保证「有反应」
+    fallbackTone();
   } catch {
-    /* 忽略 */
+    fallbackTone();
   }
 }

@@ -8,12 +8,13 @@ import { PlayingCard } from '../components/PlayingCard';
 import { PavilionMark } from '../components/Brand';
 import { MahjongTile } from '../components/MahjongTile';
 import { Avatar } from '../components/Seat';
-import { Button, IconButton } from '../components/ui';
+import { Button, IconButton, toast } from '../components/ui';
 import type { GameUI } from '../games';
 import { GAME_UIS } from '../games';
 import { clearSavedLocal, loadSavedLocal } from '../lib/controller';
 import { online, useOnline } from '../lib/online';
-import { serverUrl } from '../lib/platform';
+import { serverUrl, setServerOverride } from '../lib/platform';
+import { scanLan, type FoundHost } from '../lib/discover';
 import { navigate } from '../lib/router';
 import { VERSION_TEXT } from '../lib/version';
 import { profile } from '../lib/store';
@@ -170,7 +171,10 @@ export function Home() {
       try {
         const base = new URL(serverUrl().replace(/^ws/, 'http'));
         const origin = `${base.protocol}//${base.host}`;
-        const res = await fetch(`${origin}/api/lan?code=${code}`, { cache: 'no-store' });
+        const ac = new AbortController();
+        const timer = setTimeout(() => ac.abort(), 1500);
+        const res = await fetch(`${origin}/api/lan?code=${code}`, { cache: 'no-store', signal: ac.signal });
+        clearTimeout(timer);
         const data = (await res.json()) as { rooms?: (typeof room)[] };
         if (!alive) return;
         setRoom((data.rooms ?? []).find((r) => r?.code === code) ?? null);
@@ -190,6 +194,30 @@ export function Home() {
       clearInterval(timer);
     };
   }, [code]);
+
+  // 局域网自发现：谁在开主机，这里就能看到并一键/自动接入
+  const [hosts, setHosts] = useState<FoundHost[]>([]);
+  const [scanning, setScanning] = useState(false);
+  const runScan = async (auto = false) => {
+    setScanning(true);
+    try {
+      const list = await scanLan();
+      setHosts(list);
+      const current = serverUrl();
+      const live = list.filter((h) => h.rooms.length > 0);
+      if (live.length === 1 && /127\.0\.0\.1/.test(current) && auto) {
+        setServerOverride(`ws://${live[0].ip}:${live[0].port}/ws`);
+        online.reconnectNow();
+        toast(`已自动连上局域网主机 ${live[0].ip}`);
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
+  useEffect(() => {
+    void runScan(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const HOT_IDS = ['doudizhu', 'guandan', 'mahjong', 'texas', 'chess', 'uno'];
   const hot = HOT_IDS.map((id) => GAME_UIS.find((g) => g.id === id))
@@ -261,6 +289,31 @@ export function Home() {
             </IconButton>
           </div>
         </header>
+
+        {(scanning || hosts.length > 0) && (
+          <section className="lanbar">
+            <span className="lanbar__label">
+              {scanning ? '正在扫描局域网…' : `局域网发现 ${hosts.length} 台主机`}
+            </span>
+            {hosts.map((h) => (
+              <button
+                key={h.ip}
+                className="lanbar__chip"
+                onClick={() => {
+                  setServerOverride(`ws://${h.ip}:${h.port}/ws`);
+                  online.reconnectNow();
+                  toast(`已连到 ${h.ip}`);
+                }}
+              >
+                <b>{h.ip}</b>
+                <small>{h.rooms.length} 间房</small>
+              </button>
+            ))}
+            <button className="lanbar__retry" onClick={() => void runScan()}>
+              重扫
+            </button>
+          </section>
+        )}
 
         <section className="joinwrap">
           <form

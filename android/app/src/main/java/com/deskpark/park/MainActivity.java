@@ -61,6 +61,27 @@ public class MainActivity extends BridgeActivity {
     private boolean ttsReady = false;
     private String pendingSpeech = null;
 
+    /** 本机局域网 IPv4（Wi-Fi 网段），网页据此扫描同网段的主机 */
+    @android.webkit.JavascriptInterface
+    public String lanIp() {
+      try {
+        java.util.List<java.net.NetworkInterface> list =
+            java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces());
+        for (java.net.NetworkInterface ni : list) {
+          if (!ni.isUp() || ni.isLoopback()) continue;
+          String name = ni.getName() == null ? "" : ni.getName().toLowerCase();
+          if (name.startsWith("rmnet") || name.startsWith("ccmni") || name.startsWith("dummy")) continue;
+          for (java.net.InetAddress addr : java.util.Collections.list(ni.getInetAddresses())) {
+            String host = addr.getHostAddress();
+            if (host == null || host.contains(":") || addr.isLoopbackAddress() || addr.isLinkLocalAddress()) continue;
+            if (host.startsWith("192.168.") || host.startsWith("10.") || host.startsWith("172.")) return host;
+          }
+        }
+      } catch (Throwable ignored) {
+      }
+      return "";
+    }
+
     /** 报牌语音：WebView 本身不实现 SpeechSynthesis，这里用系统 TTS 兜住 */
     @JavascriptInterface
     public void speak(final String text) {

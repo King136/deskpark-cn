@@ -1213,3 +1213,38 @@
 .field--stack .field__label > span {
   white-space: nowrap;
 }
+
+/* 报牌气泡（挂在 body 上，任何页面都能看见） */
+#park-cue-layer {
+  position: fixed;
+  top: 16%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+@keyframes park-cue-in {
+  0% { opacity: 0; transform: translateY(10px) scale(0.86); }
+  16% { opacity: 1; transform: translateY(0) scale(1.04); }
+  28% { transform: translateY(0) scale(1); }
+  76% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-18px) scale(0.98); }
+}
+.park-cue {
+  padding: 8px 18px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  color: #2b1f0d;
+  background: linear-gradient(180deg, #f5dda9, #d7b573);
+  box-shadow:
+    0 12px 26px rgba(10, 20, 16, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  animation: park-cue-in 1.6s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
