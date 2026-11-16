@@ -1,7 +1,7 @@
 import type { Card } from '@park/engine';
 import { Rng, ddz } from '@park/engine';
 import { RotateCw } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardRow, Hand } from '../../components/Hand';
 import { PlayingCard } from '../../components/PlayingCard';
 import { Avatar, Seat } from '../../components/Seat';
@@ -9,6 +9,7 @@ import { Button, Sheet, toast } from '../../components/ui';
 import type { GameController } from '../../lib/controller';
 import { signed } from '../../lib/format';
 import { callout, primeVoice } from '../../lib/callout';
+import { flyCards } from '../../lib/fly';
 import { playSound } from '../../lib/sound';
 import { settings } from '../../lib/store';
 import { CountChip, MoveZone, useHintCycle, useSelection, useTurnCue } from '../shared/trick';
@@ -145,7 +146,37 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
     if (err) toast(err, 'error');
     return !err;
   };
+  const [settled, setSettled] = useState(true);
+  const handRef = useRef<HTMLDivElement>(null);
+  const selKey = [...sel].sort((a, b) => a - b).join(',');
+
+  // 选牌后 300ms「确认窗口」：手指能反悔改选，也不至于误触直接出牌
+  useEffect(() => {
+    setSettled(false);
+    const t = setTimeout(() => setSettled(true), 300);
+    return () => clearTimeout(t);
+  }, [selKey]);
+
   const doPlay = () => {
+    if (!pattern) {
+      const el = handRef.current;
+      el?.animate(
+        [
+          { transform: 'translateX(0)' },
+          { transform: 'translateX(-7px)' },
+          { transform: 'translateX(6px)' },
+          { transform: 'translateX(-4px)' },
+          { transform: 'translateX(0)' },
+        ],
+        { duration: 320, easing: 'ease-out' },
+      );
+      return;
+    }
+    const nodes = [...sel]
+      .map((id) => document.querySelector<HTMLElement>(`.ddz__hand [data-cid="${id}"]`))
+      .filter((n): n is HTMLElement => !!n);
+    const zone = document.querySelector<HTMLElement>('.ddz__zone.is-me');
+    flyCards(nodes, zone?.getBoundingClientRect() ?? null);
     if (act({ type: 'play', cards: [...sel] })) setSel(new Set());
   };
   const doPass = () => {
@@ -281,7 +312,11 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
                 <Button variant="felt" onClick={doHint}>
                   提示
                 </Button>
-                <Button variant="felt-primary" disabled={!pattern} onClick={doPlay}>
+                <Button
+                  variant="felt-primary"
+                  disabled={!pattern || !settled}
+                  onClick={doPlay}
+                >
                   出牌
                 </Button>
                 {pattern && <span className="pattern-tag">{ddz.DDZ_KIND_NAME[pattern.kind]}</span>}
@@ -300,7 +335,7 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
         )}
       </div>
 
-      <div className="ddz__hand">
+      <div className="ddz__hand" ref={handRef}>
         {!spectator && (
           <Hand
             cards={v.hand}
