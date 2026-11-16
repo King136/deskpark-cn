@@ -1,8 +1,8 @@
 import type { AnyGame, GameCategory } from '@park/engine';
 import { getGame } from '@park/engine';
 import { normalizeRoomCode } from '@park/protocol';
-import { ArrowRight, Gamepad2, Play, Settings2, Users } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { ArrowRight, Blocks, Dice5, Gamepad2, Grid2x2, LayoutGrid, Play, Settings2, Sparkles, UserRound, Users } from 'lucide-react';
+import type { CSSProperties, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { PlayingCard } from '../components/PlayingCard';
 import { PavilionMark } from '../components/Brand';
@@ -122,12 +122,26 @@ function GameTile({
   );
 }
 
+/** 左栏分类图标：扑克/麻将/棋类/桌游各一个隐喻，不写死颜色 */
+function RailIcon({ id }: { id: GameCategory | 'all' }) {
+  const map: Record<string, ReactElement> = {
+    all: <LayoutGrid size={16} />,
+    poker: <Dice5 size={16} />,
+    mahjong: <Grid2x2 size={16} />,
+    chess: <Sparkles size={16} />,
+    board: <Blocks size={16} />,
+    casual: <Gamepad2 size={16} />,
+  };
+  return map[id] ?? <LayoutGrid size={16} />;
+}
+
 export function Home() {
   const p = profile.use();
   const net = useOnline();
   const [setup, setSetup] = useState<{ gameId: string; mode: 'local' | 'online' } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [code, setCode] = useState('');
+  const [cat, setCat] = useState<GameCategory | 'all'>('all');
   const resume = GAME_UIS.map((g) => (loadSavedLocal(g.id) ? g.id : null)).find(Boolean) ?? null;
   const resumeDef = resume ? getGame(resume) : null;
 
@@ -177,6 +191,13 @@ export function Home() {
     };
   }, [code]);
 
+  const HOT_IDS = ['doudizhu', 'guandan', 'mahjong', 'texas', 'chess', 'uno'];
+  const hot = HOT_IDS.map((id) => GAME_UIS.find((g) => g.id === id))
+    .filter((g): g is GameUI => !!g)
+    .slice(0, 3);
+  const shown =
+    cat === 'all' ? GAME_UIS : GAME_UIS.filter((g) => getGame(g.id)?.meta.category === cat);
+  const catTitle = CATEGORIES.find((c) => c.id === cat)?.title ?? '全部玩法';
   const groups = CATEGORIES.map((c) => ({
     ...c,
     games: GAME_UIS.filter((g) => getGame(g.id)?.meta.category === c.id),
@@ -191,144 +212,230 @@ export function Home() {
   );
 
   return (
-    <div className="home">
-      <header className="home__top">
-        <div className="brand">
-          <PavilionMark size={34} className="brand__mark" />
-          <span className="brand__text">
-            <strong>闲亭</strong>
-            <small>DESKPARK</small>
-          </span>
-        </div>
-        <div className="home__me">
-          <IconButton label="游戏库" onClick={() => navigate('/library')}>
-            <Gamepad2 size={19} />
-          </IconButton>
-          <button className="me-chip" onClick={() => navigate('/me')} aria-label="个人中心">
-            <Avatar name={p.name} avatar={p.avatar} size={28} />
-            <span>{p.name}</span>
-          </button>
-          <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
-            <Settings2 size={19} />
-          </IconButton>
-        </div>
-      </header>
-
-      <section className="hero">
-        <h1>
-          与朋友，或与电脑，
-          <br />
-          来一局。
-        </h1>
-        <p>扑克、麻将与更多桌面游戏。打开网页即玩，无需下载。</p>
-        <form
-          className="join"
-          onSubmit={(e) => {
-            e.preventDefault();
-            join();
-          }}
+    <div className="home lobby">
+      <aside className="rail" aria-label="玩法分类">
+        <button
+          className={`rail__item${cat === 'all' ? ' is-on' : ''}`}
+          onClick={() => setCat('all')}
         >
-          <input
-            value={code}
-            onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
-            placeholder="输入 4 位房间号"
-            inputMode="text"
-            autoCapitalize="characters"
-            aria-label="房间号"
-          />
-          <Button variant="primary" type="submit" disabled={code.length !== 4}>
-            加入 <ArrowRight size={15} />
-          </Button>
-        </form>
-        {code.length === 4 && (
-          <div className={`join-card${room ? ' is-live' : ''}`}>
-            {room ? (
-              <>
-                <div className="join-card__main">
-                  <b>{getGame(room.gameId)?.meta.name ?? '未知玩法'}</b>
-                  <span>
-                    {room.status === 'playing' ? '对局中，可进去观战' : '等人开局'} ·{' '}
-                    {room.humans}/{room.seats} 人
-                    {TEAM_NOTE[room.gameId] ? ` · ${TEAM_NOTE[room.gameId]}` : ''}
-                  </span>
-                </div>
-                <div className="join-card__who">
-                  {(room.players ?? [])
-                    .filter((n): n is string => !!n)
-                    .join('、') || '还没有人入座'}
-                </div>
-                <Button variant="primary" size="sm" onClick={join}>
-                  进入房间 <ArrowRight size={14} />
-                </Button>
-              </>
-            ) : (
-              <span className="join-card__hint">
-                {probing ? '正在问主机…' : '主机上没有这个房号，确认房间号或让房主重开一次'}
-              </span>
-            )}
-          </div>
-        )}
-      </section>
+          <span className="rail__ico"><LayoutGrid size={16} /></span>
+          <span className="rail__label">全部</span>
+        </button>
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.id}
+            className={`rail__item${cat === c.id ? ' is-on' : ''}`}
+            onClick={() => setCat(c.id)}
+          >
+            <span className="rail__ico"><RailIcon id={c.id} /></span>
+            <span className="rail__label">{c.title.replace('更多玩法', '更多')}</span>
+          </button>
+        ))}
+        <div className="rail__spacer" />
+        <button className="rail__item" onClick={() => navigate('/library')}>
+          <span className="rail__ico"><Gamepad2 size={16} /></span>
+          <span className="rail__label">游戏库</span>
+        </button>
+        <button className="rail__item" onClick={() => navigate('/me')}>
+          <span className="rail__ico"><UserRound size={16} /></span>
+          <span className="rail__label">我的</span>
+        </button>
+      </aside>
 
-      {net.room && (
-        <section className="resume">
-          <div>
-            <strong>你在房间 {net.room.code} 中</strong>
-            <span>
-              {getGame(net.room.gameId)?.meta.name} ·{' '}
-              {net.room.status === 'playing' ? '对局进行中' : '等待开局'}
+      <div className="main">
+        <header className="main__top">
+          <div className="brand">
+            <PavilionMark size={30} className="brand__mark" />
+            <span className="brand__text">
+              <strong>闲亭</strong>
+              <small>DESKPARK</small>
             </span>
           </div>
-          <div className="resume__actions">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                online.send({ t: 'leave' });
-              }}
-            >
-              离开
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => navigate(`/room/${net.room!.code}`)}>
-              回到房间
-            </Button>
+          <div className="main__me">
+            <button className="me-chip" onClick={() => navigate('/me')} aria-label="个人中心">
+              <Avatar name={p.name} avatar={p.avatar} size={26} />
+              <span>{p.name}</span>
+            </button>
+            <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
+              <Settings2 size={18} />
+            </IconButton>
           </div>
-        </section>
-      )}
+        </header>
 
-      {resume && resumeDef && (
-        <section className="resume">
-          <div>
-            <strong>继续上次的{resumeDef.meta.name}</strong>
-            <span>单人对局已自动保存</span>
-          </div>
-          <div className="resume__actions">
-            <Button variant="ghost" size="sm" onClick={() => clearSavedLocal()}>
-              放弃
+        <section className="joinwrap">
+          <form
+            className="join"
+            onSubmit={(e) => {
+              e.preventDefault();
+              join();
+            }}
+          >
+            <input
+              value={code}
+              onChange={(e) => setCode(normalizeRoomCode(e.target.value))}
+              placeholder="输入 4 位房间号"
+              inputMode="text"
+              autoCapitalize="characters"
+              aria-label="房间号"
+            />
+            <Button variant="primary" type="submit" disabled={code.length !== 4}>
+              加入 <ArrowRight size={15} />
             </Button>
-            <Button variant="primary" size="sm" onClick={() => navigate(`/play/${resume}`)}>
-              继续
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {groups.map((g) => (
-        <section className={`games-group ${g.note ? 'is-more' : ''}`} key={g.id}>
-          <h2>{g.title}</h2>
-          <div className={`games ${g.note ? 'games--small' : ''}`}>{g.games.map(tile)}</div>
-          {g.note && (
-            <p className="more__note">玩法以插件形式实现，新增一个小游戏只需实现规则接口与牌桌界面。</p>
+          </form>
+          {code.length === 4 && (
+            <div className={`join-card${room ? ' is-live' : ''}`}>
+              {room ? (
+                <>
+                  <div className="join-card__main">
+                    <b>{getGame(room.gameId)?.meta.name ?? '未知玩法'}</b>
+                    <span>
+                      {room.status === 'playing' ? '对局中，可进去观战' : '等人开局'} ·{' '}
+                      {room.humans}/{room.seats} 人
+                      {TEAM_NOTE[room.gameId] ? ` · ${TEAM_NOTE[room.gameId]}` : ''}
+                    </span>
+                  </div>
+                  <div className="join-card__who">
+                    {(room.players ?? [])
+                      .filter((n): n is string => !!n)
+                      .join('、') || '还没有人入座'}
+                  </div>
+                  <Button variant="primary" size="sm" onClick={join}>
+                    进入房间 <ArrowRight size={14} />
+                  </Button>
+                </>
+              ) : (
+                <span className="join-card__hint">
+                  {probing ? '正在问主机…' : '主机上没有这个房号，确认房间号或让房主重开一次'}
+                </span>
+              )}
+            </div>
           )}
         </section>
-      ))}
 
-      <footer className="home__foot">
-        <span className="home__ver" aria-label="版本">
-          <b>闲亭</b>
-          {VERSION_TEXT}
-        </span>
-      </footer>
+        {net.room && (
+          <section className="resume">
+            <div>
+              <strong>你在房间 {net.room.code} 中</strong>
+              <span>
+                {getGame(net.room.gameId)?.meta.name} ·{' '}
+                {net.room.status === 'playing' ? '对局进行中' : '等待开局'}
+              </span>
+            </div>
+            <div className="resume__actions">
+              <Button variant="ghost" size="sm" onClick={() => online.send({ t: 'leave' })}>
+                离开
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => navigate(`/room/${net.room!.code}`)}>
+                回到房间
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {resume && resumeDef && (
+          <section className="resume">
+            <div>
+              <strong>继续上次的{resumeDef.meta.name}</strong>
+              <span>单人对局已自动保存</span>
+            </div>
+            <div className="resume__actions">
+              <Button variant="ghost" size="sm" onClick={() => clearSavedLocal()}>
+                放弃
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => navigate(`/play/${resume}`)}>
+                继续
+              </Button>
+            </div>
+          </section>
+        )}
+
+        {cat === 'all' && hot.length > 0 && (
+          <section className="hot">
+            <h2>
+              现在最热
+              <small>这三桌随时都有人开</small>
+            </h2>
+            <div className="hot__row">
+              {hot.map((ui, i) => (
+                <button
+                  key={ui.id}
+                  className="hot-card"
+                  onClick={() => setSetup({ gameId: ui.id, mode: 'local' })}
+                >
+                  <span className="hot-card__rank">TOP {i + 1}</span>
+                  <GameArt ui={ui} />
+                  <span className="hot-card__body">
+                    <b>{getGame(ui.id)?.meta.name}</b>
+                    <small>{getGame(ui.id)?.meta.tagline}</small>
+                  </span>
+                  <span className="hot-card__ops">
+                    <span
+                      className="hot-card__op"
+                      role="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSetup({ gameId: ui.id, mode: 'local' });
+                      }}
+                    >
+                      <Play size={12} /> 单人
+                    </span>
+                    <span
+                      className="hot-card__op"
+                      role="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSetup({ gameId: ui.id, mode: 'online' });
+                      }}
+                    >
+                      <Users size={12} /> 联机
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="wall">
+          <h2>
+            {catTitle}
+            <small>{shown.length} 款</small>
+          </h2>
+          <div className="wall__grid">
+            {shown.map((ui) => (
+              <button
+                key={ui.id}
+                className="tomb"
+                onClick={() => setSetup({ gameId: ui.id, mode: 'local' })}
+                title={`${getGame(ui.id)?.meta.name} · 单人`}
+              >
+                <GameArt ui={ui} />
+                <span className="tomb__name">{getGame(ui.id)?.meta.name}</span>
+                <span className="tomb__meta">{ui.people}</span>
+                <span
+                  className="tomb__link"
+                  role="button"
+                  aria-label="联机"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSetup({ gameId: ui.id, mode: 'online' });
+                  }}
+                >
+                  <Users size={12} />
+                </span>
+                {ui.badge && <span className="tomb__badge">{ui.badge}</span>}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <footer className="home__foot">
+          <span className="home__ver" aria-label="版本">
+            <b>闲亭</b>
+            {VERSION_TEXT}
+          </span>
+        </footer>
+      </div>
 
       {setup && (
         <SetupSheet
