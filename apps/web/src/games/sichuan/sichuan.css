@@ -781,3 +781,11 @@
     width: auto;
   }
 }
+
+/* 顶部信息条占位一行，不再压在上家头像上（横竖屏通用） */
+.sc {
+  padding-top: 34px;
+}
+.sc-info {
+  top: 4px;
+}

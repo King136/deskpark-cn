@@ -12,6 +12,8 @@ import type { VirtualCharacter } from '../lib/characters';
 import { figureHeight, findCharacter, useCharacters } from '../lib/characters';
 import { profile, settings } from '../lib/store';
 import type { FeltTheme } from '../lib/store';
+import { online } from '../lib/online';
+import { getServerOverride, isWebview, serverUrl, setServerOverride } from '../lib/platform';
 
 export const FELTS: { value: FeltTheme; label: string; color: string }[] = [
   { value: 'jade', label: '墨绿', color: '#2a6152' },
@@ -258,6 +260,81 @@ function AiSection() {
   );
 }
 
+/* ---------- 联机服务器地址：App 壳里没有同源服务器，局域网/公网部署也要手填 ---------- */
+export function ServerSection() {
+  const [value, setValue] = useState(() => getServerOverride());
+  const [now, setNow] = useState(() => getServerOverride());
+  const [probe, setProbe] = useState('');
+  const native = isWebview();
+
+  /* 局域网自发现：问一句这台主机「你在吗、有几间房」 */
+  const probeHost = async () => {
+    const u = new URL(serverUrl().replace(/^ws/, 'http'));
+    const base = `${u.protocol}//${u.host}`;
+    setProbe('正在探测…');
+    try {
+      const res = await fetch(`${base}/api/lan`, { cache: 'no-store' });
+      const data = (await res.json()) as { name?: string; rooms?: unknown[] };
+      setProbe(`主机在线 · ${data.name ?? '闲亭'} · 当前 ${data.rooms?.length ?? 0} 间房`);
+    } catch {
+      setProbe('这个地址没有应答，确认主机在跑、并且在同一网络');
+    }
+  };
+
+  const apply = (text: string) => {
+    setServerOverride(text);
+    const saved = getServerOverride();
+    setNow(saved);
+    setValue(saved);
+    online.reconnectNow();
+    toast(saved ? `联机地址已保存：${saved}` : '已恢复默认（与网页同源）');
+  };
+
+  return (
+    <div className="field field--stack server-block">
+      <div className="field__label">
+        <span>联机服务器</span>
+        <small>
+          {native
+            ? 'App 里必须填写能访问到的服务器，例如 192.168.1.9:8787（官方模拟器可用 10.0.2.2:8787）'
+            : '留空即用当前网页所在的服务器；跨设备联机、或网页与服务器分开部署时填写'}
+        </small>
+      </div>
+      <div className="field__control server-field">
+        <input
+          value={value}
+          placeholder="192.168.1.9:8787 或 wss://game.example.com/ws"
+          inputMode="url"
+          spellCheck={false}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && apply(value)}
+          aria-label="联机服务器地址"
+        />
+        <div className="server-field__ops">
+          <Button size="sm" variant="primary" onClick={() => apply(value)}>
+            保存并重连
+          </Button>
+          {now && (
+            <Button size="sm" variant="ghost" onClick={() => apply('')}>
+              恢复默认
+            </Button>
+          )}
+        </div>
+        <div className="server-field__ops">
+          <Button size="sm" variant="secondary" onClick={() => void probeHost()}>
+            探测主机
+          </Button>
+        </div>
+        {probe && <small className="server-field__now">{probe}</small>}
+        <small className="server-field__now">
+          当前：{serverUrl()}
+          {native && !now ? '（App 内通常连不上，请先填地址）' : ''}
+        </small>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsSheet({
   open,
   onClose,
@@ -280,6 +357,7 @@ export function SettingsSheet({
         </>
       )}
       <AiSection />
+      <ServerSection />
       <Field label="桌布">
         <div className="felt-picker">
           {FELTS.map((f) => (

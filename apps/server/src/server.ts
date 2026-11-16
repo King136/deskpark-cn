@@ -1,7 +1,6 @@
 import type { ServerMessage } from '@park/protocol';
 import { createReadStream, existsSync, statSync } from 'node:fs';
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createServer as createHttpServer } from 'node:http';
+import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
@@ -34,8 +33,15 @@ export interface StartOptions {
 }
 
 function defaultStaticDir(): string {
-  const here = fileURLToPath(new URL('.', import.meta.url));
-  return resolve(here, '../../web/dist');
+  const candidates: string[] = [];
+  try {
+    candidates.push(resolve(fileURLToPath(new URL('.', import.meta.url)), '../../web/dist'));
+  } catch {
+    /* 单文件打包（CJS）里没有 import.meta.url */
+  }
+  candidates.push(resolve(process.cwd(), 'web'), resolve(process.cwd(), 'apps/web/dist'));
+  for (const c of candidates) if (existsSync(join(c, 'index.html'))) return c;
+  return candidates[0];
 }
 
 /**
@@ -53,7 +59,9 @@ const SECURITY_HEADERS: Record<string, string> = {
   'content-security-policy': [
     "default-src 'self'",
     // WebAssembly 引擎需要 wasm-unsafe-eval（只允许编译 wasm，不放开 eval）
-    "script-src 'self' 'wasm-unsafe-eval'",
+    // blob: 供「游戏库」里导入的单文件 H5 直接开窗运行
+    "script-src 'self' blob: 'wasm-unsafe-eval'",
+    "frame-src 'self' blob:",
     "worker-src 'self' blob:",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
@@ -115,9 +123,30 @@ function serveStatic(root: string, req: IncomingMessage, res: ServerResponse): v
 export function startServer(opts: StartOptions) {
   const config: ServerConfig = { ...DEFAULT_CONFIG, ...opts.config };
   const hub = new Hub(config);
+  // 换机接棒：把盘上还在的房间接回来
+  const restored = hub.restoreRooms();
+  if (restored) config.log?.('[room] restored', restored);
   const staticDir = opts.staticDir === null ? null : resolve(opts.staticDir ?? defaultStaticDir());
 
   const http = createHttpServer((req, res) => {
+    if (req.url === '/api/lan') {
+      // 局域网自发现：其它设备/客户端探到这个端点，就知道这台上能开房
+      const lan = {
+        app: 'deskpark',
+        name: '闲亭 · 局域网主机',
+        serverTime: Date.now(),
+        rooms: [...hub.rooms.values()].map((r) => ({
+          code: r.code,
+          gameId: r.def.meta.id,
+          seats: r.seats.length,
+          humans: r.seats.filter((s) => s.kind === 'human').length,
+          status: r.status,
+        })),
+      };
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(JSON.stringify(lan));
+      return;
+    }
     if (req.url === '/healthz') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ ok: true, ...hub.stats() }));

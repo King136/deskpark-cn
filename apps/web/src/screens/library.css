@@ -1,0 +1,231 @@
+.lib {
+  min-height: 100%;
+  padding: calc(14px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    calc(28px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  background: var(--paper);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lib__top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 8px;
+  margin: -4px 0 0;
+  background: color-mix(in oklab, var(--paper) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+.lib__top h1 {
+  flex: 1;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.lib__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 10px 0 4px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.lib__drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 18px 12px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line-2);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.lib__drop small {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.lib__drop:active {
+  background: var(--accent-soft);
+}
+
+.lib__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lib__list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lib__card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  text-align: left;
+}
+.lib__card:active {
+  background: var(--surface-2);
+}
+.lib__badge {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  letter-spacing: 0.02em;
+}
+.lib__badge.is-fc {
+  color: #8a5a12;
+  background: #f7e9d2;
+}
+.lib__badge.is-gb {
+  color: #5b4b8a;
+  background: #ebe7f7;
+}
+.lib__badge.is-gba {
+  color: #2f5a7a;
+  background: #e3edf4;
+}
+.lib__badge.is-cocos {
+  color: #1f5c4f;
+  background: #e2ece8;
+}
+.lib__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.lib__card small {
+  flex: none;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.lib__go {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.lib__empty {
+  margin: 8px 2px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--ink-3);
+}
+
+.lib__row {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.lib__row span {
+  flex: 1;
+}
+
+.lib__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.lib__hint {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.lib__rename input {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+/* 游戏内嵌运行：整块盖住，顶部一条自己的工具条 */
+.lib__player {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  background: #0d0f0e;
+}
+.lib__player header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(6px + env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 6px
+    max(10px, env(safe-area-inset-left));
+  color: #e8e6e0;
+  font-size: 12.5px;
+  background: rgba(13, 15, 14, 0.9);
+}
+.lib__player header span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 600;
+}
+.lib__player header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 99px;
+  color: #e8e6e0;
+  background: rgba(255, 255, 255, 0.1);
+}
+.lib__player iframe {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #000;
+}

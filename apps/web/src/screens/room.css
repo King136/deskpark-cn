@@ -275,3 +275,14 @@
     inset 0 0 0 1.5px var(--accent),
     0 0 0 3px var(--focus);
 }
+
+/* 娱乐分：这一桌的累计 + 我的档案 */
+.room__scores {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.room__scores:empty {
+  display: none;
+}

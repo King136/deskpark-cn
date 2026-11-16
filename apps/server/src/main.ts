@@ -1,7 +1,12 @@
 import { startServer } from './server';
+import { ScoreStore } from './scores';
 
 const port = Number(process.env.PORT) || 8787;
 const turnTimeoutMs = Number(process.env.TURN_TIMEOUT_MS) || 30_000;
+/** 娱乐分存档目录；设为 off 则不落盘（每次重启清零） */
+const dataDir = process.env.PARK_DATA_DIR ?? './data';
+const log = (...args: unknown[]) => console.log(new Date().toISOString(), ...args);
+const scores = new ScoreStore(dataDir === 'off' ? null : dataDir, log);
 
 const server = startServer({
   port,
@@ -9,7 +14,8 @@ const server = startServer({
   staticDir: process.env.STATIC_DIR,
   config: {
     turnTimeoutMs,
-    log: (...args) => console.log(new Date().toISOString(), ...args),
+    scores,
+    log,
   },
 });
 
@@ -24,6 +30,7 @@ process.on('unhandledRejection', (e) => console.error(new Date().toISOString(), 
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
+    scores.dispose();
     server.close().finally(() => process.exit(0));
   });
 }

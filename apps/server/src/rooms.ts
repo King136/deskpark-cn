@@ -3,11 +3,18 @@ import { Table, getGame, normalizeOptions } from '@park/engine';
 import type {
   ChatMessage,
   ClientMessage,
+  MatchScore,
+  MatchScoreRow,
+  RoomScoreRow,
   RoomSnapshot,
+  ScoreSummary,
   SeatInfo,
   ServerMessage,
 } from '@park/protocol';
-import {
+import { mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { settleMatch } from '@park/score';
+import type { ScoreStore } from './scores';import {
   AVATARS,
   CHAT_HISTORY,
   EMOTES,
@@ -47,6 +54,8 @@ export interface ServerConfig {
   seatGraceMs: number;
   /** 房间里没有在线真人多久后删除 */
   roomIdleMs: number;
+  /** 娱乐分存档；不传则只在本局内存里统计（测试用） */
+  scores?: ScoreStore;
   log?: (...args: unknown[]) => void;
 }
 
@@ -91,6 +100,10 @@ class Room {
   chat: ChatMessage[] = [];
   private chatSeq = 0;
   private unsubscribe: (() => void) | null = null;
+  /** 本次进房以来每个座位的娱乐分累计（含电脑，方便对上账） */
+  sessionScores: number[] = [];
+  /** 最近一局的结算 */
+  lastMatch: MatchScore | null = null;
 
   constructor(
     readonly hub: Hub,
@@ -101,6 +114,7 @@ class Room {
     public hostId: string,
   ) {
     this.seats = Array.from({ length: seatCount }, () => ({ kind: 'empty' }) as SeatState);
+    this.sessionScores = Array.from({ length: seatCount }, () => 0);
   }
 
   seatOf(clientId: string): number | null {
@@ -152,7 +166,22 @@ class Room {
       ?.send?.({ t: 'chatHistory', code: this.code, messages: this.chat });
   }
 
+  /** 落盘用的最小状态：不带 playerId，重启/换机后由玩家用房号重新认领座位 */
+  diskState(): Record<string, unknown> {
+    const s = this.snapshot();
+    return {
+      code: this.code,
+      gameId: this.def.meta.id,
+      options: this.options,
+      seats: s.seats.map(({ kind, name, avatar }) => ({ kind, name, avatar })),
+      sessionScores: this.sessionScores,
+      matchNo: this.matchNo,
+      savedAt: Date.now(),
+    };
+  }
+
   broadcastRoom(): void {
+    this.hub.touch(this);
     const room = this.snapshot();
     for (const id of this.memberIds()) {
       const c = this.hub.clientById(id);
@@ -187,6 +216,71 @@ class Room {
     for (const id of this.memberIds()) this.sendGame(id);
   }
 
+  /** 房间内本次进房以来的累计分 */
+  scoreRows(): RoomScoreRow[] {
+    return this.seats.map((s, seat) => ({
+      seat,
+      name: s.name,
+      avatar: s.avatar,
+      playerId: s.playerId,
+      session: this.sessionScores[seat] ?? 0,
+    }));
+  }
+
+  /** 结算一局，并把真人分差并入存档。只跑一次：以 matchNo 对齐 */
+  private settle(): void {
+    const t = this.table;
+    if (!t) return;
+    if (this.lastMatch?.matchNo === this.matchNo) return;
+
+    const sim = settleMatch(this.def.meta.id, t.state, this.seats.length);
+    const best = sim.rows.reduce((a, r) => Math.max(a, r.delta), -Infinity);
+    const rows: MatchScoreRow[] = sim.rows.map(({ seat, delta }) => {
+      const s = this.seats[seat];
+      this.sessionScores[seat] = (this.sessionScores[seat] ?? 0) + delta;
+      let total: number | null = null;
+      // 只有真人且带身份才落档；电脑座位只参与房间内对账
+      if (s?.kind === 'human' && s.playerId) {
+        const summary = this.hub.config.scores?.bump(
+          s.playerId,
+          s.name ?? '玩家',
+          this.def.meta.id,
+          delta,
+          sim.counted && delta > 0 && delta === best,
+        );
+        total = summary ? summary.total : null;
+      }
+      return { seat, name: s?.name, avatar: s?.avatar, playerId: s?.playerId, delta, total };
+    });
+
+    this.lastMatch = {
+      matchNo: this.matchNo,
+      gameId: this.def.meta.id,
+      unit: sim.unit,
+      basis: sim.basis,
+      counted: sim.counted,
+      rows,
+      at: Date.now(),
+    };
+    this.hub.config.log?.('[score]', this.code, this.def.meta.id, sim.basis);
+  }
+
+  sendScore(clientId: string): void {
+    const c = this.hub.clientById(clientId);
+    if (!c?.send) return;
+    c.send({
+      t: 'score',
+      code: this.code,
+      match: this.lastMatch,
+      rows: this.scoreRows(),
+      you: c.id ? (this.hub.config.scores?.summary(c.id) ?? null) : null,
+    });
+  }
+
+  broadcastScore(): void {
+    for (const id of this.memberIds()) this.sendScore(id);
+  }
+
   hasOnlineHumans(): boolean {
     return this.memberIds().some((id) => !!this.hub.clientById(id)?.send);
   }
@@ -212,10 +306,13 @@ class Room {
     });
     this.matchNo++;
     this.status = 'playing';
+    this.lastMatch = null;
     this.unsubscribe = this.table.subscribe(() => {
       this.lastActive = Date.now();
       if (this.table?.isOver() && this.status === 'playing') {
         this.status = 'finished';
+        this.settle();
+        this.broadcastScore();
         this.broadcastRoom();
       }
       this.broadcastGame();
@@ -238,8 +335,99 @@ export class Hub {
   private clientsByToken = new Map<string, Client>();
   private clientsById = new Map<string, Client>();
   rooms = new Map<string, Room>();
+  /** 房间落盘定时器：同一间房 1 秒内多次变化只写一次 */
+  private saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor(readonly config: ServerConfig = DEFAULT_CONFIG) {}
+
+  /* ---------------- 房间落盘 / 接棒 ----------------
+   * 服务端把每间房的座位、选项、娱乐分写到 `<PARK_DATA_DIR>/rooms/<房号>.json`。
+   * 进程重启、或换一台设备当主机（同一个数据目录）时，房间还在，玩家凭房号就能重新坐下。
+   */
+  private roomsDir(): string {
+    const base = process.env.PARK_DATA_DIR || join(process.cwd(), 'data');
+    return join(base, 'rooms');
+  }
+
+  touch(room: Room): void {
+    if (process.env.PARK_ROOMS_PERSIST === '0') return;
+    const prev = this.saveTimers.get(room.code);
+    if (prev) clearTimeout(prev);
+    this.saveTimers.set(
+      room.code,
+      setTimeout(() => {
+        this.saveTimers.delete(room.code);
+        this.writeRoom(room);
+      }, 900),
+    );
+  }
+
+  private writeRoom(room: Room): void {
+    try {
+      const dir = this.roomsDir();
+      mkdirSync(dir, { recursive: true });
+      const file = join(dir, `${room.code}.json`);
+      const tmp = `${file}.tmp`;
+      writeFileSync(tmp, JSON.stringify(room.diskState()));
+      renameSync(tmp, file);
+    } catch (e) {
+      this.config.log?.('[room] persist failed', room.code, e);
+    }
+  }
+
+  /** 从盘上接回一间房；没有就返回 undefined */
+  adoptRoom(code: string): Room | undefined {
+    const existing = this.rooms.get(code);
+    if (existing) return existing;
+    let raw: Record<string, unknown>;
+    try {
+      raw = JSON.parse(readFileSync(join(this.roomsDir(), `${code}.json`), 'utf8')) as Record<string, unknown>;
+    } catch {
+      return undefined;
+    }
+    const def = getGame(String(raw?.gameId ?? ''));
+    if (!def) return undefined;
+    const seats = Array.isArray(raw?.seats) ? (raw.seats as unknown[]) : [];
+    const seatCount = Math.max(
+      def.meta.minPlayers,
+      Math.min(def.meta.maxPlayers, seats.length || def.meta.defaultPlayers),
+    );
+    const options =
+      raw?.options && typeof raw.options === 'object' ? (raw.options as Record<string, unknown>) : {};
+    const r = new Room(this, code, def, normalizeOptions(def, options), seatCount, '');
+    const scores = Array.isArray(raw?.sessionScores) ? (raw.sessionScores as unknown[]) : [];
+    r.sessionScores = Array.from({ length: seatCount }, (_, i) => Number(scores[i]) || 0);
+    r.matchNo = Number(raw?.matchNo) || 0;
+    r.lastActive = Date.now();
+    this.rooms.set(code, r);
+    this.config.log?.('[room] adopted', code, def.meta.id);
+    return r;
+  }
+
+  /** 启动时把所有落盘的房间接回来（换机接棒的核心） */
+  restoreRooms(): number {
+    let n = 0;
+    try {
+      for (const f of readdirSync(this.roomsDir())) {
+        if (!f.endsWith('.json')) continue;
+        if (this.adoptRoom(f.slice(0, -'.json'.length))) n++;
+      }
+    } catch {
+      /* 没有目录就是第一次启动 */
+    }
+    return n;
+  }
+
+  private forgetRoom(code: string): void {
+    const t = this.saveTimers.get(code);
+    if (t) clearTimeout(t);
+    this.saveTimers.delete(code);
+    try {
+      unlinkSync(join(this.roomsDir(), `${code}.json`));
+    } catch {
+      /* 已经没了 */
+    }
+  }
 
   clientById(id: string): Client | undefined {
     return this.clientsById.get(id);
@@ -335,7 +523,7 @@ export class Hub {
       client.send({ t: 'error', message: '已在其他页面登录', code: 'replaced' });
     client.send = send;
     client.lastSeen = Date.now();
-    send({ t: 'welcome', playerId: client.id, name: client.name });
+    send({ t: 'welcome', playerId: client.id, name: client.name, score: this.summary(client.id) });
 
     const room = client.roomCode ? this.rooms.get(client.roomCode) : undefined;
     if (room) {
@@ -350,10 +538,16 @@ export class Hub {
       room.broadcastRoom();
       room.sendGame(client.id);
       room.sendChatHistory(client.id);
+      room.sendScore(client.id);
     } else {
       client.roomCode = null;
     }
     return client;
+  }
+
+  /** 个人娱乐分档案（没有存档时为全 0） */
+  summary(id: string): ScoreSummary {
+    return this.config.scores?.summary(id) ?? { total: 0, matches: 0, wins: 0, byGame: {} };
   }
 
   private error(c: Client, message: string, code?: string): void {
@@ -363,6 +557,18 @@ export class Hub {
   private handle(c: Client, msg: ClientMessage): void {
     const room = c.roomCode ? this.rooms.get(c.roomCode) : undefined;
     switch (msg.t) {
+      case 'scoreboard': {
+        if (room) room.sendScore(c.id);
+        else
+          c.send?.({
+            t: 'score',
+            code: '',
+            match: null,
+            rows: [],
+            you: this.summary(c.id),
+          });
+        return;
+      }
       case 'rename': {
         c.name = cleanName(msg.name);
         if (isAvatarId(msg.avatar)) c.avatar = msg.avatar;
@@ -394,6 +600,7 @@ export class Hub {
         this.config.log?.('[room] created', code, def.meta.id, 'by', c.name);
         r.broadcastRoom();
         r.sendChatHistory(c.id);
+        r.sendScore(c.id);
         return;
       }
       case 'join': {
@@ -404,11 +611,13 @@ export class Hub {
           c.joinFails = fails;
           return this.error(c, '尝试太频繁了，请稍后再试');
         }
-        const r = this.rooms.get(code);
+        // 盘上有这间房（服务端重启过 / 换了主机）就接回来，玩家凭房号继续玩
+        const r = this.rooms.get(code) ?? this.adoptRoom(code);
         if (!r) {
           c.joinFails = [...fails, now];
           return this.error(c, `房间 ${code || ''} 不存在或已解散`, 'no-room');
         }
+        if (!r.hostId) r.hostId = c.id;
         if (room && room !== r) this.leave(c, room);
         c.roomCode = code;
         const isNew = r.seatOf(c.id) === null && !r.spectators.has(c.id);
@@ -422,6 +631,7 @@ export class Hub {
         r.sendGame(c.id);
         if (isNew) r.system(`${c.name} 加入了房间${r.seatOf(c.id) === null ? '（观战）' : ''}`);
         r.sendChatHistory(c.id);
+        r.sendScore(c.id);
         return;
       }
       case 'leave': {
@@ -582,6 +792,7 @@ export class Hub {
   private removeRoom(room: Room): void {
     room.dispose();
     this.rooms.delete(room.code);
+    this.forgetRoom(room.code);
     for (const id of room.memberIds()) {
       const c = this.clientById(id);
       if (c && c.roomCode === room.code) c.roomCode = null;

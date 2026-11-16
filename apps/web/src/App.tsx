@@ -4,7 +4,9 @@ import { useOnline } from './lib/online';
 import { useRoute } from './lib/router';
 import { settings } from './lib/store';
 import { Home } from './screens/Home';
+import { Library } from './screens/Library';
 import { LocalGame } from './screens/LocalGame';
+import { Me } from './screens/Me';
 import { OnlineRoom } from './screens/OnlineRoom';
 
 const Gallery = import.meta.env.DEV ? lazy(() => import('./screens/Gallery')) : null;
@@ -47,6 +49,8 @@ export function App() {
       {route.name === 'home' && <Home />}
       {route.name === 'play' && <LocalGame key={route.gameId} gameId={route.gameId} />}
       {route.name === 'room' && <OnlineRoom key={route.code} code={route.code} />}
+      {route.name === 'library' && <Library />}
+      {route.name === 'me' && <Me />}
       {route.name === 'gallery' && Gallery && (
         <Suspense fallback={null}>
           <Gallery />

@@ -1,7 +1,7 @@
 import type { AnyGame, GameCategory } from '@park/engine';
 import { getGame } from '@park/engine';
 import { normalizeRoomCode } from '@park/protocol';
-import { ArrowRight, Code2, Play, Settings2, Users } from 'lucide-react';
+import { ArrowRight, Gamepad2, Play, Settings2, Users } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { useState } from 'react';
 import { PlayingCard } from '../components/PlayingCard';
@@ -14,13 +14,13 @@ import { GAME_UIS } from '../games';
 import { clearSavedLocal, loadSavedLocal } from '../lib/controller';
 import { online, useOnline } from '../lib/online';
 import { navigate } from '../lib/router';
+import { VERSION_TEXT } from '../lib/version';
 import { profile } from '../lib/store';
 import { markFreshStart } from './LocalGame';
 import { SettingsSheet } from './SettingsSheet';
 import { SetupSheet } from './SetupSheet';
 import './home.css';
 
-const REPO_URL = 'https://github.com/solitern/DeskPark';
 
 const CATEGORIES: { id: GameCategory; title: string; note?: string }[] = [
   { id: 'poker', title: '扑克' },
@@ -149,7 +149,10 @@ export function Home() {
           </span>
         </div>
         <div className="home__me">
-          <button className="me-chip" onClick={() => setSettingsOpen(true)} aria-label="修改昵称">
+          <IconButton label="游戏库" onClick={() => navigate('/library')}>
+            <Gamepad2 size={19} />
+          </IconButton>
+          <button className="me-chip" onClick={() => navigate('/me')} aria-label="个人中心">
             <Avatar name={p.name} avatar={p.avatar} size={28} />
             <span>{p.name}</span>
           </button>
@@ -235,25 +238,16 @@ export function Home() {
           <h2>{g.title}</h2>
           <div className={`games ${g.note ? 'games--small' : ''}`}>{g.games.map(tile)}</div>
           {g.note && (
-            <p className="more__note">
-              玩法以插件形式实现，新增一个小游戏只需实现规则接口与牌桌界面。
-              <a
-                href={`${REPO_URL}/blob/main/docs/ADDING_A_GAME.md`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                了解如何自定义玩法
-              </a>
-            </p>
+            <p className="more__note">玩法以插件形式实现，新增一个小游戏只需实现规则接口与牌桌界面。</p>
           )}
         </section>
       ))}
 
       <footer className="home__foot">
-        <span>闲亭 DeskPark · v0.2</span>
-        <a href={REPO_URL} target="_blank" rel="noreferrer">
-          <Code2 size={14} /> 源码
-        </a>
+        <span className="home__ver" aria-label="版本">
+          <b>闲亭</b>
+          {VERSION_TEXT}
+        </span>
       </footer>
 
       {setup && (

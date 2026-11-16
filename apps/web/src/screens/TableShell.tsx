@@ -1,26 +1,36 @@
 import type { ChatMessage } from '@park/protocol';
-import { EMOTES, cleanChatText } from '@park/protocol';
+import { cleanChatText } from '@park/protocol';
 import {
   BookOpen,
   Bot,
   ChevronLeft,
-  MessageCircle,
+  Hash,
+  RotateCw,
   Palette,
-  Smile,
+  Trophy,
+  UserPlus,
   Volume2,
   VolumeX,
   WifiOff,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { ChatPanel } from '../components/Chat';
-import { PixelAvatar } from '../components/pixel/PixelAvatar';
-import { Button, IconButton, Sheet, toast } from '../components/ui';
+import { MatchScoreCard, MyScoreCard, RoomScoreTable } from '../components/ScoreBoard';
+import { TableHud } from '../components/TableHud';
+import { Button, Sheet, toast } from '../components/ui';
 import { replyChat } from '../lib/ai/agent';
 import { aiEvents, aiSpeech } from '../lib/ai/events';
 import { aiReady } from '../lib/ai/settings';
 import { characterName } from '../lib/ai/turn';
 import type { GameController } from '../lib/controller';
+import {
+  attachHostBridge,
+  hasNativeOrientation,
+  initialChrome,
+  installHostApi,
+  notifyHost,
+  onHostChrome,
+} from '../lib/host';
 import { online, useOnline } from '../lib/online';
 import { playSound } from '../lib/sound';
 import { settings } from '../lib/store';
@@ -43,6 +53,10 @@ const LAST_SOUND: Record<string, Parameters<typeof playSound>[0]> = {
 };
 
 const LOCAL_ID = 'local-me';
+/** 交互区收起到"只留信息头"时的高度 */
+const PEEK = 56;
+
+type DockState = 'open' | 'peek' | 'hidden';
 
 export function TableShell({
   ctl,
@@ -56,12 +70,174 @@ export function TableShell({
   const s = settings.use();
   const [rules, setRules] = useState(false);
   const [look, setLook] = useState(false);
+  const [stats, setStats] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const [emoteOpen, setEmoteOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  /** 已经关掉结算卡的局号 */
+  const [dismissedScore, setDismissedScore] = useState(0);
   const net = useOnline();
   const online_ = ctl.mode === 'online';
-  // 人机局：聊天只在本地记录；被 AI 接管的电脑会偶尔发言，也会回应玩家
+
+  /* ---------------- 宿主交权 / 屏幕旋转 ---------------- */
+  /** 工具条与交互区是否由本页自己画；宿主可用 postMessage 关掉 */
+  const [chrome, setChrome] = useState(initialChrome);
+  /** 顺时针旋转：0=原本，1=顺时针 90°，2=180°，3=270°；每点一次 +90° */
+  const [turns, setTurns] = useState(0);
+  /** 物理视口尺寸（跟随设备方向） */
+  const [vp, setVp] = useState(() => ({
+    w: window.innerWidth,
+    h: window.innerHeight,
+  }));
+
+  useEffect(() => {
+    const onResize = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+
+  /** 旋转后画面逻辑上是横是竖：奇数档位把屏幕宽高对调 */
+  const landscape = turns % 2 === 1 ? vp.h > vp.w : vp.w > vp.h;
+
+  useEffect(() => attachHostBridge(), []);
+  useEffect(() => onHostChrome(setChrome), []);
+  useEffect(() => {
+    installHostApi({
+      setChrome: (tools, dock) => setChrome({ tools, dock }),
+      // 宿主想要某个方向：直接换档位，比锁系统方向更可控
+      setOrientation: (mode) => setTurns(mode === 'landscape' ? 1 : 0),
+      notify: notifyHost,
+    });
+    notifyHost({ type: 'ready', host: hasNativeOrientation() ? 'native' : 'web' });
+  }, []);
+
+  /* ---------------- 交互区：三态 + 拖动 ---------------- */
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [body, setBody] = useState({ w: 0, h: 0 });
+  const [dock, setDock] = useState<DockState>('open');
+  const [dragPx, setDragPx] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const measure = () => setBody({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /** 交互区展开后的尺寸：竖屏按内容需要给 220~300px（约为内容区 1/3 上下），横屏按 1/3 宽 */
+  const fullPx = landscape
+    ? body.w / 3
+    : Math.min(300, Math.max(220, body.h * 0.34));
+  const peekPx = landscape ? 96 : PEEK;
+  /** 宿主把交互区收走后，牌桌独占整块 */
+  const dockPx = !chrome.dock
+    ? 0
+    : (dragPx ?? (dock === 'open' ? fullPx : dock === 'peek' ? peekPx : 0));
+
+  const onGrab = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (fullPx <= 0) return;
+    const startPos = landscape ? e.clientX : e.clientY;
+    const st = { startPos, base: dockPx, lastPx: dockPx, lastT: performance.now(), v: 0 };
+    setDragging(true);
+    const move = (ev: PointerEvent) => {
+      const cur = landscape ? ev.clientX : ev.clientY;
+      // 向上（竖屏）/ 向左（横屏）拖 = 交互区变大
+      const next = Math.max(0, Math.min(fullPx, st.base + (st.startPos - cur)));
+      const now = performance.now();
+      const dt = now - st.lastT;
+      if (dt > 0) st.v = (next - st.lastPx) / dt;
+      st.lastPx = next;
+      st.lastT = now;
+      setDragPx(next);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      setDragging(false);
+      setDragPx(null);
+      const px = st.lastPx;
+      const v = st.v;
+      const order: Array<{ at: number; state: DockState }> = [
+        { at: 0, state: 'hidden' },
+        { at: peekPx, state: 'peek' },
+        { at: fullPx, state: 'open' },
+      ];
+      // 甩得够快就沿速度方向跳到相邻档
+      if (Math.abs(v) > 0.45) {
+        const target =
+          v > 0
+            ? [...order].reverse().find((o) => o.at > px + 1)
+            : order.find((o) => o.at < px - 1);
+        if (target) return setDock(target.state);
+      }
+      let best = order[0];
+      for (const o of order) if (Math.abs(px - o.at) < Math.abs(px - best.at)) best = o;
+      setDock(best.state);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
+
+  const toggleDock = () => setDock((d) => (d === 'open' ? 'peek' : 'open'));
+
+  /* 牌桌铺满画面区（不含交互区）的两种做法：
+     竖屏：高度够，直接重排进上方 2/3，元素自然变大；
+     横屏：手机高度矮（约 340），重排会把出牌区挤出画面，所以按宽度定缩放系数，
+           再用"缩放后能占满的高度"当画布高度，等比缩放后正好铺满左侧 2/3。 */
+  /* 牌桌铺满画面区（不含交互区）：
+     先按"受限的那一轴"算缩放系数——竖屏是高度、横屏是宽度；
+     另一轴的画布按比例放大，缩回来正好铺满，既不留黑边，也不会因为空间变小把座位排挤到一起。
+     画布永远不窄于原来的设计尺寸，所以 12 个玩法都不会重叠或被裁切。 */
+  /** 交互区收起时，牌桌左上角的出牌提示（原生壳交权时也留着，玩家才不会漏拍） */
+  const turnView = (ctl.view ?? {}) as Record<string, unknown>;
+  const turnSeat = typeof turnView.turn === 'number' ? (turnView.turn as number) : null;
+  const turnName =
+    turnSeat != null
+      ? `${ctl.players[turnSeat]?.name ?? `${turnSeat + 1} 号位`}${ctl.seat === turnSeat ? '（你）' : ''}`
+      : null;
+  const turnHand = Array.isArray(turnView.handCounts)
+    ? (turnView.handCounts as number[])[turnSeat ?? 0]
+    : Array.isArray(turnView.counts)
+      ? (turnView.counts as number[])[turnSeat ?? 0]
+      : null;
+  const showTurnRibbon = (!chrome.dock || dock !== 'open') && !ctl.over && turnName != null;
+
+  /** 收起态顶部给"轮到谁"留一条 28px 窄带（舞台整体下移，永不压到牌桌内容） */
+  const TOP_PAD = showTurnRibbon ? 28 : 0;
+  const availW = landscape ? Math.max(0, body.w - dockPx) : body.w;
+  const availH = landscape
+    ? Math.max(0, body.h - TOP_PAD)
+    : Math.max(0, body.h - dockPx - TOP_PAD);
+  let stageStyle: React.CSSProperties;
+  if (body.w > 0 && body.h > 0) {
+    // 竖屏：先按"舒适高度"给画布，再只缩到刚好放进剩余空间，避免把牌面缩得太小
+    const COMFORT_H = 640;
+    const k = landscape
+      ? availW / body.w
+      : Math.min(1, availH / COMFORT_H);
+    const canvasW = landscape ? body.w : k > 0 ? availW / k : availW;
+    const canvasH = k > 0 ? availH / k : availH;
+    stageStyle = {
+      width: canvasW,
+      height: canvasH,
+      top: TOP_PAD,
+      transform: `scale(${k})`,
+      transformOrigin: 'top left',
+    };
+  } else {
+    stageStyle = { width: '100%', height: '100%', top: TOP_PAD };
+  }
+
+  /* ---------------- 聊天 ---------------- */
   const [localChat, setLocalChat] = useState<ChatMessage[]>([]);
   const chatMessages = online_ ? net.chat : localChat;
   const myChatId = online_ ? net.playerId : LOCAL_ID;
@@ -126,11 +302,13 @@ export function TableShell({
       }
     });
   }, [online_]);
+
   const lastChatId = chatMessages.at(-1)?.id ?? 0;
+  // 交互区露出时聊天内容直接可见，视为已读
   const [seenChat, setSeenChat] = useState(lastChatId);
   useEffect(() => {
-    if (chatOpen) setSeenChat(lastChatId);
-  }, [chatOpen, lastChatId]);
+    if (dock === 'open') setSeenChat(lastChatId);
+  }, [dock, lastChatId]);
   const incoming = chatMessages.filter(
     (m) => m.kind === 'user' && m.id > seenChat && m.playerId !== myChatId,
   );
@@ -158,86 +336,139 @@ export function TableShell({
     else ctl.leave();
   };
 
+  const invite = async () => {
+    const code = net.room?.code;
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      toast(`房号 ${code} 已复制，发给朋友即可加入`);
+    } catch {
+      toast(`房号 ${code}，发给朋友即可加入`);
+    }
+  };
+
   const offline = ctl.mode === 'online' && net.status !== 'open';
   const emotes = ctl.mode === 'online' ? net.emotes.filter((e) => Date.now() - e.at < 3500) : [];
 
   return (
-    <div className="table" data-felt={s.felt}>
+    <div
+      className={`table ${landscape ? 'is-landscape' : 'is-portrait'} ${
+        dragging ? 'is-grabbing' : ''
+      } is-turn-${turns}`}
+      data-felt={s.felt}
+    >
+      {chrome.tools && (
       <header className="table__top">
-        <div className="table__top-left">
-          <IconButton label="返回" onClick={onBack}>
-            <ChevronLeft size={22} />
-          </IconButton>
-          <div className="table__title">
-            <strong>{title}</strong>
-            <span>{ctl.mode === 'online' ? '联机对局' : '单人练习'}</span>
-          </div>
-        </div>
-        <div className="table__top-right">
-          {(online_ || ctl.seat !== null) && (
-            <IconButton label="聊天" onClick={() => setChatOpen((x) => !x)} active={chatOpen}>
-              <MessageCircle size={19} />
-              {!chatOpen && incoming.length > 0 && (
-                <span className="badge num">{incoming.length > 9 ? '9+' : incoming.length}</span>
-              )}
-            </IconButton>
+        <div className="table__tools">
+          <button className="tool" onClick={onBack}>
+            <ChevronLeft size={17} />
+            <span>大厅</span>
+          </button>
+          <span className="tool tool--static" title={title}>
+            <Hash size={15} />
+            <span>{online_ && net.room ? net.room.code : title}</span>
+          </span>
+          {online_ && (
+            <button className="tool" onClick={invite}>
+              <UserPlus size={16} />
+              <span>邀请</span>
+            </button>
           )}
-          {online_ && ctl.seat !== null && (
-            <IconButton label="表情" onClick={() => setEmoteOpen((x) => !x)} active={emoteOpen}>
-              <Smile size={19} />
-            </IconButton>
-          )}
+          <button className="tool" onClick={() => setRules(true)}>
+            <BookOpen size={16} />
+            <span>规则</span>
+          </button>
+          <button className="tool" onClick={() => setStats(true)}>
+            <Trophy size={16} />
+            <span>战绩</span>
+          </button>
           {ctl.seat !== null && !ctl.over && (
-            <IconButton
-              label={ctl.auto ? '取消托管' : '托管'}
-              active={ctl.auto}
+            <button
+              className={`tool ${ctl.auto ? 'is-on' : ''}`}
               onClick={() => ctl.setAuto(!ctl.auto)}
             >
-              <Bot size={19} />
-            </IconButton>
+              <Bot size={16} />
+              <span>{ctl.auto ? '托管中' : '托管'}</span>
+            </button>
           )}
-          <IconButton
-            label={s.sound ? '关闭音效' : '开启音效'}
-            onClick={() => settings.set({ sound: !s.sound })}
+          <button className="tool" onClick={() => setLook(true)}>
+            <Palette size={16} />
+            <span>牌面</span>
+          </button>
+          <button className="tool" onClick={() => settings.set({ sound: !s.sound })}>
+            {s.sound ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            <span>{s.sound ? '播报' : '静音'}</span>
+          </button>
+          <button
+            className={`tool ${turns % 2 === 1 ? 'is-on' : ''}`}
+            onClick={() => setTurns((t) => (t + 1) % 4)}
+            title={`顺时针旋转 90°（当前 ${turns * 90}°）`}
           >
-            {s.sound ? <Volume2 size={19} /> : <VolumeX size={19} />}
-          </IconButton>
-          <IconButton label="外观" onClick={() => setLook(true)}>
-            <Palette size={19} />
-          </IconButton>
-          <IconButton label="规则" onClick={() => setRules(true)}>
-            <BookOpen size={19} />
-          </IconButton>
+            <RotateCw size={16} />
+            <span>旋转</span>
+          </button>
         </div>
-        {emoteOpen && (
-          <div className="emote-picker">
-            {EMOTES.map((e) => (
-              <button
-                key={e}
-                onClick={() => {
-                  online.send({ t: 'emote', emote: e });
-                  setEmoteOpen(false);
-                }}
-              >
-                {e}
-              </button>
-            ))}
+      </header>
+      )}
+
+      <div className="table__body" ref={bodyRef}>
+        {ctl.auto && (
+          <div className="auto-banner">
+            <Bot size={15} /> 托管中，电脑正在替你出牌
+            <button onClick={() => ctl.setAuto(false)}>取消托管</button>
           </div>
         )}
-      </header>
+        {offline && (
+          <div className="net-banner">
+            <WifiOff size={15} /> {net.status === 'offline' ? '网络已断开' : '正在重新连接…'}
+            {net.status === 'offline' && <button onClick={() => online.reconnectNow()}>重试</button>}
+          </div>
+        )}
 
-      {ctl.auto && (
-        <div className="auto-banner">
-          <Bot size={15} /> 托管中，电脑正在替你出牌
-          <button onClick={() => ctl.setAuto(false)}>取消托管</button>
-        </div>
+        <main className="board">
+          {showTurnRibbon && (
+            <div className="turn-ribbon" role="status" aria-live="polite">
+              <i className="turn-ribbon__dot" />
+              <span className="turn-ribbon__text">
+                轮到 <b>{turnName}</b>
+              </span>
+              {turnHand != null && <small>{turnHand} 张</small>}
+            </div>
+          )}
+          <div className="board__stage" style={stageStyle}>
+            {children}
+          </div>
+        </main>
+
+        {chrome.dock && (
+        <TableHud
+          ctl={ctl}
+          dock={dock}
+          vertical={!landscape}
+          sizePx={dockPx}
+          chat={{
+            messages: chatMessages,
+            myId: myChatId,
+            onSend: sendChat,
+            unread: dock === 'open' ? 0 : incoming.length,
+          }}
+          onToggle={toggleDock}
+          onGrab={onGrab}
+        />
+        )}
+      </div>
+
+      {chrome.dock && dock === 'hidden' && (
+        <button
+          className="dock-summon"
+          onClick={() => setDock('open')}
+          aria-label="展开交互区"
+          title="展开交互区"
+        >
+          <ChevronLeft size={20} style={{ rotate: '180deg' }} />
+        </button>
       )}
-      {offline && (
-        <div className="net-banner">
-          <WifiOff size={15} /> {net.status === 'offline' ? '网络已断开' : '正在重新连接…'}
-          {net.status === 'offline' && <button onClick={() => online.reconnectNow()}>重试</button>}
-        </div>
-      )}
+
       <div className="emote-layer">
         {emotes.map((e) => (
           <div key={e.at + e.name} className="emote-float">
@@ -247,58 +478,36 @@ export function TableShell({
         ))}
       </div>
 
-      <main className="board">{children}</main>
-
-      {!chatOpen && incoming.length > 0 && (
-        <div className="chat-peek">
-          {incoming.slice(-3).map((m) => (
-            <div key={m.id} className="chat-peek__item" onClick={() => setChatOpen(true)}>
-              <PixelAvatar avatar={m.avatar} name={m.name ?? '?'} size={24} />
-              <b>{m.name}</b>
-              <span>{m.text}</span>
-            </div>
-          ))}
+      {online_ && net.matchScore && net.matchScore.matchNo !== dismissedScore && (
+        <div className="table__scorecard">
+          <MatchScoreCard
+            match={net.matchScore}
+            seat={ctl.seat}
+            onDismiss={() => setDismissedScore(net.matchScore?.matchNo ?? 0)}
+          />
         </div>
       )}
-      {chatOpen && (
-        <aside className="chat-drawer" aria-label="房间聊天">
-          <div className="chat-drawer__head">
-            <span>
-              {online_ ? '房间聊天' : '聊天'}
-              <small>{online_ ? net.room?.code : '人机局'}</small>
-            </span>
-            <IconButton label="收起" onClick={() => setChatOpen(false)}>
-              <ChevronLeft size={18} style={{ rotate: '180deg' }} />
-            </IconButton>
-          </div>
-          <ChatPanel
-            tone="felt"
-            messages={chatMessages}
-            myId={myChatId}
-            autoFocus
-            onSend={sendChat}
-            placeholder={
-              online_
-                ? undefined
-                : aiBots.length
-                  ? '和 AI 人机聊几句吧（提到名字会优先回复）'
-                  : '人机局：唤醒 AI 后，电脑才会说话'
-            }
-          />
-        </aside>
-      )}
 
-      <Sheet
-        open={rules}
-        onClose={() => setRules(false)}
-        title={`${ctl.def.meta.name} · 规则`}
-        wide
-      >
+      <Sheet open={rules} onClose={() => setRules(false)} title={`${ctl.def.meta.name} · 规则`} wide>
         <ol className="rules-list">
           {ctl.def.meta.rules.map((r: string, i: number) => (
             <li key={i}>{r}</li>
           ))}
         </ol>
+      </Sheet>
+
+      <Sheet open={stats} onClose={() => setStats(false)} title="牌友战绩" wide>
+        {online_ ? (
+          <>
+            <RoomScoreTable rows={net.roomScores} title="本房娱乐分" />
+            <MyScoreCard summary={net.myScore} />
+          </>
+        ) : (
+          <>
+            <p className="ready-note">单人练习不计娱乐分，联机对局才会记录。</p>
+            <MyScoreCard summary={null} />
+          </>
+        )}
       </Sheet>
 
       <SettingsSheet open={look} onClose={() => setLook(false)} />

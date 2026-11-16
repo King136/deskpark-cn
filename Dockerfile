@@ -16,6 +16,7 @@ ARG VITE_SERVER_URL=""
 COPY package.json package-lock.json ./
 COPY packages/engine/package.json packages/engine/
 COPY packages/protocol/package.json packages/protocol/
+COPY packages/score/package.json packages/score/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 RUN if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi \
@@ -36,10 +37,12 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8787 \
     STATIC_DIR=/app/web \
-    TURN_TIMEOUT_MS=30000
+    TURN_TIMEOUT_MS=30000 \
+    PARK_DATA_DIR=/app/data
 
 COPY --from=build --chown=node:node /src/apps/server/dist/main.js ./server.js
 COPY --from=build --chown=node:node /src/apps/web/dist ./web
+RUN mkdir -p /app/data && chown node:node /app/data
 
 USER node
 EXPOSE 8787

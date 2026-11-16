@@ -5,7 +5,9 @@ export type Route =
   | { name: 'home' }
   | { name: 'play'; gameId: string }
   | { name: 'room'; code: string }
-  | { name: 'gallery' };
+  | { name: 'gallery' }
+  | { name: 'library' }
+  | { name: 'me' };
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, '');
@@ -13,6 +15,8 @@ function parse(hash: string): Route {
   if (parts[0] === 'play' && parts[1]) return { name: 'play', gameId: parts[1] };
   if (parts[0] === 'room' && parts[1]) return { name: 'room', code: parts[1].toUpperCase() };
   if (parts[0] === 'gallery' && import.meta.env.DEV) return { name: 'gallery' };
+  if (parts[0] === 'library') return { name: 'library' };
+  if (parts[0] === 'me') return { name: 'me' };
   return { name: 'home' };
 }
 

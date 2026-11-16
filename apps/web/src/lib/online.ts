@@ -1,4 +1,12 @@
-import type { ChatMessage, ClientMessage, RoomSnapshot, ServerMessage } from '@park/protocol';
+import type {
+  ChatMessage,
+  ClientMessage,
+  MatchScore,
+  RoomScoreRow,
+  RoomSnapshot,
+  ScoreSummary,
+  ServerMessage,
+} from '@park/protocol';
 import { CHAT_HISTORY, PROTOCOL_VERSION } from '@park/protocol';
 import { useSyncExternalStore } from 'react';
 import { serverUrl } from './platform';
@@ -27,6 +35,12 @@ export interface OnlineState {
   emotes: Emote[];
   /** 当前房间的聊天记录 */
   chat: ChatMessage[];
+  /** 我的娱乐分档案（服务器存档） */
+  myScore: ScoreSummary | null;
+  /** 最近一局的结算 */
+  matchScore: MatchScore | null;
+  /** 房间内本次进房以来的累计 */
+  roomScores: RoomScoreRow[];
 }
 
 const initial: OnlineState = {
@@ -39,6 +53,9 @@ const initial: OnlineState = {
   error: null,
   emotes: [],
   chat: [],
+  myScore: null,
+  matchScore: null,
+  roomScores: [],
 };
 
 /** 联机客户端：自动重连（指数退避）、离线消息排队、状态可订阅。 */
@@ -165,8 +182,18 @@ class OnlineClient {
   private onMessage(m: ServerMessage) {
     switch (m.t) {
       case 'welcome':
-        this.patch({ playerId: m.playerId });
+        this.patch({ playerId: m.playerId, myScore: m.score });
         break;
+      case 'score': {
+        // 不在这个房间（或已经离开）就丢弃，避免串房
+        if (m.code && this.state.room && this.state.room.code !== m.code) break;
+        this.patch({
+          matchScore: m.match ?? this.state.matchScore,
+          roomScores: m.rows.length ? m.rows : this.state.roomScores,
+          myScore: m.you ?? this.state.myScore,
+        });
+        break;
+      }
       case 'room': {
         const sameRoom = this.state.room?.code === m.room.code;
         const sameMatch = this.state.game && sameRoom;
@@ -175,6 +202,8 @@ class OnlineClient {
           you: m.you,
           game: sameMatch ? this.state.game : null,
           chat: sameRoom ? this.state.chat : [],
+          matchScore: sameRoom ? this.state.matchScore : null,
+          roomScores: sameRoom ? this.state.roomScores : [],
         });
         break;
       }
@@ -188,22 +217,36 @@ class OnlineClient {
         if (this.state.room && this.state.room.code !== m.code) break;
         this.patch({ chat: m.messages });
         break;
-      case 'game':
+      case 'game': {
         if (
           this.state.game &&
           this.state.game.matchNo === m.matchNo &&
           this.state.game.version > m.version
         )
           break;
-        this.patch({ game: m, clockOffset: m.serverTime - Date.now() });
+        // 新一局开始：把上一局的结算卡收掉，避免比赛进行中还挂着旧账
+        const stale = this.state.matchScore && this.state.matchScore.matchNo !== m.matchNo;
+        this.patch({
+          game: m,
+          clockOffset: m.serverTime - Date.now(),
+          matchScore: stale && !m.over ? null : this.state.matchScore,
+        });
         break;
+      }
       case 'left':
-        this.patch({ room: null, you: null, game: null, chat: [] });
+        this.patch({ room: null, you: null, game: null, chat: [], matchScore: null, roomScores: [] });
         break;
       case 'error':
         this.patch({ error: { message: m.message, code: m.code, at: Date.now() } });
         if (m.code === 'no-room' && this.state.room) {
-          this.patch({ room: null, you: null, game: null, chat: [] });
+          this.patch({
+            room: null,
+            you: null,
+            game: null,
+            chat: [],
+            matchScore: null,
+            roomScores: [],
+          });
         }
         if (m.code === 'replaced') {
           this.wanted = false;

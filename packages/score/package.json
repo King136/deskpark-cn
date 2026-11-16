@@ -1,0 +1,12 @@
+{
+  "name": "@park/score",
+  "version": "0.3.0",
+  "private": true,
+  "description": "娱乐分结算：把一局终局状态折算成不可兑换的娱乐积分，纯函数、无依赖",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

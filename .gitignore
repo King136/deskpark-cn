@@ -12,3 +12,19 @@ coverage/
 !.vscode/extensions.json
 !.vscode/settings.json
 __pycache__/
+
+# 娱乐分存档（本地开发时生成，不入库）
+data/
+*.scores.json
+
+# 打包产物与本地环境
+apps/web/dist-single/
+apps/web/dist-embed/
+android/app/build/
+android/.gradle/
+android/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+data/rooms/

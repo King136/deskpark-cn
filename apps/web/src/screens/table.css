@@ -1,6 +1,8 @@
 .table {
   position: fixed;
   inset: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   color: var(--felt-ink);
   background: radial-gradient(
@@ -20,70 +22,117 @@
   opacity: 0.11;
   mix-blend-mode: overlay;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.table::after {
-  /* 牌桌内框线 */
-  content: '';
-  position: absolute;
-  inset: max(52px, calc(env(safe-area-inset-top) + 48px)) 10px 10px;
-  border-radius: 28px;
-  border: 1px solid var(--felt-line);
-  pointer-events: none;
-}
-
+/* ---------- 顶部常驻工具条 ---------- */
 .table__top {
-  position: absolute;
+  position: relative;
   z-index: 60;
-  top: 0;
-  left: 0;
-  right: 0;
+  flex: none;
   height: calc(52px + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0
-    max(8px, env(safe-area-inset-left));
+  padding: env(safe-area-inset-top) max(6px, env(safe-area-inset-left)) 0
+    max(6px, env(safe-area-inset-right));
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
-.table__top .iconbtn {
-  color: var(--felt-ink-2);
-}
-.table__top .iconbtn:hover {
-  background: var(--felt-glass-2);
-  color: var(--felt-ink);
-}
-.table__top .iconbtn.is-active {
-  background: rgba(231, 200, 134, 0.18);
-  color: var(--felt-accent);
-}
-.table__top-left,
-.table__top-right {
+.table__tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px 2px;
 }
-.table__title {
+.table__tools::-webkit-scrollbar {
+  display: none;
+}
+.tool {
+  flex: none;
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
-  margin-left: 2px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 44px;
+  height: 42px;
+  padding: 0 7px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  line-height: 1;
+  color: var(--felt-ink-2);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
 }
-.table__title strong {
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+.tool:active {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--felt-ink);
 }
-.table__title span {
-  font-size: 11px;
-  color: var(--felt-ink-3);
+.tool.is-on {
+  background: rgba(231, 200, 134, 0.2);
+  color: var(--felt-accent);
+}
+.tool--static {
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--felt-ink);
+  cursor: default;
+}
+.tool--static span {
+  max-width: 82px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 内容区：牌桌 + 交互区 ---------- */
+.table__body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.table.is-portrait .table__body {
+  flex-direction: column;
+}
+.table.is-landscape .table__body {
+  flex-direction: row;
 }
 
 .board {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.board::after {
+  content: '';
   position: absolute;
-  top: calc(52px + env(safe-area-inset-top));
-  left: env(safe-area-inset-left);
-  right: env(safe-area-inset-right);
-  bottom: env(safe-area-inset-bottom);
+  inset: 6px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--felt-line);
+  pointer-events: none;
+  z-index: 2;
+}
+.board__stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: transform 0.36s var(--dock-spring, cubic-bezier(0.2, 1.06, 0.28, 1));
+  will-change: transform;
+}
+.table.is-grabbing .board::after {
+  content: '';
+  position: absolute;
+  inset: 6px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--felt-line);
+  pointer-events: none;
+  z-index: 2;
+}
+.board__stage {
+  transition: none;
 }
 
 .auto-banner,
@@ -448,4 +497,129 @@
     height: 24px;
     font-size: 11.5px;
   }
+}
+
+/* 结算卡：浮在牌桌画面正中，不被右侧交互区盖住 */
+.table__scorecard {
+  position: absolute;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  padding: 12px;
+}
+.table__scorecard .score-card {
+  position: relative;
+  top: auto;
+  right: auto;
+  left: auto;
+  bottom: auto;
+  width: min(340px, 100%);
+  pointer-events: auto;
+}
+
+/* 交互区已支持竖屏，旧的"横屏体验更佳"提示不再需要 */
+.rotate-tip {
+  display: none !important;
+}
+
+/* 顶栏已是真实占位布局，信息条不再上移到顶栏里 */
+@media (max-height: 500px) {
+  .top-info {
+    position: static;
+    top: auto;
+    left: auto;
+    translate: none;
+    height: auto;
+  }
+}
+
+/* ---------- 交互区收起时的牌桌提示条 ---------- */
+.turn-ribbon {
+  position: absolute;
+  z-index: 30;
+  left: 10px;
+  top: 3px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 90px);
+  padding: 0 10px 0 8px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  color: var(--felt-ink);
+  background: rgba(9, 26, 22, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.turn-ribbon__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--felt-accent);
+  box-shadow: 0 0 0 0 rgba(231, 200, 134, 0.6);
+  animation: turn-pulse 1.8s ease-out infinite;
+}
+.turn-ribbon__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.turn-ribbon__text b {
+  color: var(--felt-accent);
+  font-weight: 700;
+}
+.turn-ribbon small {
+  color: var(--felt-ink-2);
+  font-size: 10.5px;
+}
+@keyframes turn-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(231, 200, 134, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(231, 200, 134, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(231, 200, 134, 0);
+  }
+}
+
+/* ---------- 顺时针旋转：0/90/180/270，每点一次 +90° ---------- */
+/* 画面按"旋转后的逻辑尺寸"重新排：奇数档位把屏幕宽高对调，内容永远按实际可用宽高布局 */
+.table.is-turn-1 {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 100vh;
+  height: 100vw;
+  transform-origin: 0 0;
+  transform: rotate(90deg) translateY(-100%);
+}
+.table.is-turn-2 {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  transform-origin: 0 0;
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+.table.is-turn-3 {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: 100vh;
+  height: 100vw;
+  transform-origin: 0 0;
+  transform: rotate(270deg) translateX(-100%);
+}
+
+/* 牌桌期间页面底色也是绒布色，任何残留安全区缝隙都不露白 */
+html.park-table,
+html.park-table body,
+html.park-table #root {
+  background: #0d241f;
 }

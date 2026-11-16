@@ -28,8 +28,43 @@ export const storage = {
   },
 };
 
-/** 联机服务器 WebSocket 地址：优先使用构建时注入的 VITE_SERVER_URL，否则与页面同源。 */
+/**
+ * 联机服务器地址：优先使用玩家自己填的地址（App / 局域网必需），
+ * 其次构建时注入的 VITE_SERVER_URL，最后与页面同源。
+ */
+const SERVER_KEY = 'park.server';
+
+/** 规范化玩家输入：`192.168.1.9:8787` → `ws://192.168.1.9:8787/ws` */
+export function normalizeServer(input: string): string {
+  const raw = input.trim();
+  if (!raw) return '';
+  let url = raw.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
+  if (!/^(ws|wss):\/\//i.test(url)) url = `ws://${url}`;
+  url = url.replace(/\/+$/, '');
+  // 没写路径时补上 /ws ；写了路径就尊重玩家的选择
+  if (!/\/[^/]+$/.test(url.replace(/^(ws|wss):\/\/[^/]+/i, ''))) url += '/ws';
+  return url;
+}
+
+export function getServerOverride(): string {
+  return storage.get<string>(SERVER_KEY, '');
+}
+
+export function setServerOverride(input: string): void {
+  const value = normalizeServer(input);
+  if (value) storage.set(SERVER_KEY, value);
+  else storage.remove(SERVER_KEY);
+}
+
+/** 是否跑在 App 壳里（Capacitor）：此时没有同源服务器，必须手填地址 */
+export function isWebview(): boolean {
+  const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return !!cap?.isNativePlatform?.();
+}
+
 export function serverUrl(): string {
+  const override = getServerOverride();
+  if (override) return normalizeServer(override);
   const fromEnv = import.meta.env.VITE_SERVER_URL as string | undefined;
   if (fromEnv) return fromEnv;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';

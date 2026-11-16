@@ -1154,3 +1154,52 @@
     font-size: 11.5px;
   }
 }
+
+/* 联机服务器地址（App / 跨设备部署时手填） */
+.server-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.server-field input {
+  box-sizing: border-box;
+}
+
+.server-field input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-family: var(--font-ui);
+}
+
+.server-field input:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.server-field__ops {
+  display: flex;
+  gap: 8px;
+}
+
+.server-field__now {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+  word-break: break-all;
+}
+
+/* 竖排字段：标题不折行，说明文字换行到下一行 */
+.field--stack .field__label {
+  flex-wrap: wrap;
+}
+
+.field--stack .field__label > span {
+  white-space: nowrap;
+}

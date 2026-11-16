@@ -12,6 +12,7 @@
   "dependencies": {
     "@park/engine": "*",
     "@park/protocol": "*",
+    "@park/score": "*",
     "ws": "^8.18.0"
   },
   "devDependencies": {

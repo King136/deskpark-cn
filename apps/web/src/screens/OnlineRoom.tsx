@@ -2,6 +2,7 @@ import { getGame } from '@park/engine';
 import { Bot, Check, ChevronLeft, Copy, Crown, Link2, Plus, UserMinus, X } from 'lucide-react';
 import { Suspense, useEffect, useState } from 'react';
 import { ChatPanel } from '../components/Chat';
+import { MyScoreCard, RoomScoreTable } from '../components/ScoreBoard';
 import { Avatar } from '../components/Seat';
 import { Button, IconButton, Sheet, toast } from '../components/ui';
 import { getGameUI } from '../games';
@@ -221,6 +222,15 @@ function WaitingRoom() {
             </div>
           );
         })}
+      </section>
+
+      <section className="room__scores">
+        <RoomScoreTable
+          rows={net.roomScores}
+          unit={net.matchScore?.unit ?? '分'}
+          title="这一桌的娱乐分"
+        />
+        <MyScoreCard summary={net.myScore} />
       </section>
 
       <section className="room__chat">

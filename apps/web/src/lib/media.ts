@@ -24,3 +24,15 @@ export function useSeatScale(): number {
     return () => window.removeEventListener('resize', cb);
   }, seatScale);
 }
+
+/** 横屏（宽大于高） */
+export function useLandscape(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia('(orientation: landscape)');
+      m.addEventListener('change', cb);
+      return () => m.removeEventListener('change', cb);
+    },
+    () => window.matchMedia('(orientation: landscape)').matches,
+  );
+}

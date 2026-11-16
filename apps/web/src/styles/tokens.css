@@ -90,6 +90,13 @@
   --accent-soft: rgba(95, 179, 157, 0.14);
   --gold: #d4ac6e;
   --gold-soft: rgba(212, 172, 110, 0.14);
+
+  /* 夜间：带一点绒布绿的暖黑，而不是冷灰，和牌桌是一套 */
+  --hud-a: #1b1e1c;
+  --hud-b: #161918;
+  --hud-edge: rgba(255, 255, 255, 0.06);
+  --hud-shadow: 0 -16px 34px rgba(0, 0, 0, 0.5);
+  --hud-shadow-side: -16px 0 34px rgba(0, 0, 0, 0.46);
   --focus: rgba(95, 179, 157, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);

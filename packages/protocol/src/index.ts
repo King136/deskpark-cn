@@ -34,8 +34,7 @@ export interface RoomSnapshot {
 }
 
 /** 房间聊天消息（服务器分配 id 与时间） */
-export interface ChatMessage {
-  id: number;
+export interface ChatMessage {  id: number;
   kind: 'user' | 'system';
   text: string;
   at: number;
@@ -89,6 +88,58 @@ export function cleanPlayerName(input: unknown): string {
   return cleanText(input, NAME_MAX_LENGTH);
 }
 
+/* ------------------------------------------------------------------
+ * 娱乐分（不计费、不可兑换）
+ * 服务器只下发"分差"和"累计分"，客户端不参与计算，也没有任何充值/兑换入口。
+ * ------------------------------------------------------------------ */
+
+/** 一局结算中的一行（每个座位一行） */
+export interface MatchScoreRow {
+  seat: number;
+  name?: string;
+  avatar?: string;
+  playerId?: string;
+  /** 本局分差，可为负 */
+  delta: number;
+  /** 结算后的个人累计分；电脑座位与未登录座位为 null */
+  total: number | null;
+}
+
+/** 一局的结算结果 */
+export interface MatchScore {
+  matchNo: number;
+  gameId: string;
+  /** 分 / 级 / 筹码 */
+  unit: string;
+  /** 结算依据，讲人话，例如「地主胜 ×2 倍」 */
+  basis: string;
+  /** false 表示该玩法没有可结算数据，本局不计分 */
+  counted: boolean;
+  rows: MatchScoreRow[];
+  at: number;
+}
+
+/** 房间内本次进房以来的累计分（跨局相加，用于"这一桌谁赢了多少"） */
+export interface RoomScoreRow {
+  seat: number;
+  name?: string;
+  avatar?: string;
+  playerId?: string;
+  session: number;
+}
+
+/** 个人积分档案（跨房间累计，按 token 识别，仅本机存储） */
+export interface ScoreSummary {
+  total: number;
+  matches: number;
+  wins: number;
+  byGame: Record<string, { total: number; matches: number }>;
+}
+
+/** 合规声明，客户端原样展示 */
+export const SCORE_NOTICE =
+  '娱乐分只记录牌局输赢，不能充值，不能兑换现金或实物，不能转赠他人，也不具备任何货币价值。';
+
 export type ClientMessage =
   | { t: 'hello'; token: string; name: string; avatar?: string; v: number }
   | { t: 'create'; gameId: string; options?: Record<string, unknown>; seats?: number }
@@ -103,10 +154,11 @@ export type ClientMessage =
   | { t: 'auto'; on: boolean }
   | { t: 'emote'; emote: string }
   | { t: 'chat'; text: string }
+  | { t: 'scoreboard' }
   | { t: 'ping' };
 
 export type ServerMessage =
-  | { t: 'welcome'; playerId: string; name: string }
+  | { t: 'welcome'; playerId: string; name: string; score: ScoreSummary }
   | { t: 'room'; room: RoomSnapshot; you: { seat: number | null; isHost: boolean } }
   | {
       t: 'game';
@@ -126,6 +178,15 @@ export type ServerMessage =
   | { t: 'emote'; seat: number; emote: string; name: string }
   | { t: 'chat'; code: string; message: ChatMessage }
   | { t: 'chatHistory'; code: string; messages: ChatMessage[] }
+  | {
+      t: 'score';
+      code: string;
+      /** 刚结束那一局的结算；比赛尚未结束过则为 null */
+      match: MatchScore | null;
+      /** 房间内本次进房以来的累计 */
+      rows: RoomScoreRow[];
+      you: ScoreSummary | null;
+    }
   | { t: 'pong'; serverTime: number };
 
 export const EMOTES = ['👍', '😄', '😮', '😤', '🎉', '🙏'] as const;
