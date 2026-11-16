@@ -32,20 +32,31 @@ interface NativeVoice {
 }
 
 interface CapPlugins {
-  Capacitor?: { Plugins?: { ParkHost?: { speak?: (o: { text: string }) => Promise<unknown> } } };
+  Capacitor?: {
+    Plugins?: {
+      ParkHost?: { speak?: (o: { text: string }) => Promise<{ ok?: boolean } | void> };
+    };
+  };
 }
 
+/**
+ * 走 Capacitor 插件通道朗读。返回 true 表示"这座桥在且报成功"；
+ * 插件存在但 TTS 引擎不可用时返回 false，让调用方退到兜底音，避免静默。
+ */
 function pluginSpeak(text: string): boolean {
   const p = (globalThis as CapPlugins).Capacitor?.Plugins?.ParkHost;
   try {
-    if (p?.speak) {
-      void p.speak({ text }).catch(() => {});
-      return true;
-    }
+    if (!p?.speak) return false;
+    void p.speak({ text }).then(
+      (r) => {
+        if (r && r.ok === false) fallbackTone();
+      },
+      () => fallbackTone(),
+    );
+    return true;
   } catch {
-    /* ignore */
+    return false;
   }
-  return false;
 }
 
 function nativeSpeak(text: string): boolean {

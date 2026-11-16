@@ -26,6 +26,7 @@ describe('基础设施', () => {
       'hexisle',
       'gemguild',
       'highcard',
+      'gomoku',
     ]);
     const ddz = listGames()[0];
     expect(normalizeOptions(ddz, { baseScore: 999, rounds: 3 })).toEqual({

@@ -1,0 +1,118 @@
+.gm {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 8px;
+}
+.gm__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  font-size: 12.5px;
+  color: var(--felt-ink-2);
+}
+.gm__turn.is-me {
+  color: var(--felt-accent);
+  font-weight: 600;
+}
+.gm__round {
+  color: var(--felt-ink-2);
+}
+.gm__stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+.gm__board {
+  --n: 15;
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  width: min(100%, 92vh);
+  aspect-ratio: 1;
+  padding: 8px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #e9cf9a, #caa468);
+  box-shadow:
+    inset 0 0 0 1px rgba(90, 60, 25, 0.35),
+    0 10px 24px rgba(10, 20, 16, 0.3);
+  touch-action: manipulation;
+}
+.gm__dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+}
+.gm__dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to right, rgba(90, 60, 25, 0.45) 1px, transparent 1px) center / 100% 100% no-repeat,
+    linear-gradient(to bottom, rgba(90, 60, 25, 0.45) 1px, transparent 1px) center / 100% 100% no-repeat;
+  opacity: 0.55;
+}
+.gm__dot i {
+  position: relative;
+  z-index: 1;
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #6d6d6d, #111 62%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  animation: gm-drop 0.16s ease-out both;
+}
+.gm__dot.is-white i {
+  background: radial-gradient(circle at 32% 28%, #ffffff, #d8d2c4 65%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+.gm__dot.is-win i {
+  box-shadow:
+    0 0 0 2px rgba(240, 200, 120, 0.95),
+    0 0 12px rgba(240, 200, 120, 0.8);
+}
+.gm__dot.is-last i::after {
+  content: '';
+  position: absolute;
+  inset: 38%;
+  border-radius: 50%;
+  background: rgba(240, 200, 120, 0.9);
+}
+@keyframes gm-drop {
+  from {
+    transform: scale(0.5);
+    opacity: 0.2;
+  }
+}
+.gm__result p {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.gm__score {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.gm__score .is-win {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.gm-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 30% 20%, #f0dcb2, #c49a5c 75%);
+  overflow: hidden;
+}
+.gm-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

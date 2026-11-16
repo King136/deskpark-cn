@@ -4,6 +4,7 @@ import { lazy } from 'react';
 import type { GameController } from '../lib/controller';
 import { ChessArt } from './chess/pieces';
 import { GemGuildArt } from './gemguild/art';
+import { GomokuArt } from './gomoku/GomokuArt';
 import { HexArt } from './hexisle/art';
 import { OneCardArt } from './onecard/cards';
 import { SpellArt } from './spellstones/spells';
@@ -49,6 +50,15 @@ export const GAME_UIS: GameUI[] = [
     showcase: [c(1, 'S', 14), c(2, 'C', 14), c(3, 'H', 2)],
     wildIds: [3],
     people: '4 人 · 2v2',
+  },
+  {
+    id: 'gomoku',
+    Board: lazy(() => import('./gomoku/GomokuBoard')),
+    tint: ['#8a6b3d', '#5a4126'],
+    showcase: [c(1, 'S', 13), c(2, 'H', 12), c(3, 'D', 11)],
+    people: '2 人',
+    badge: '新',
+    Art: GomokuArt,
   },
   {
     id: 'texas',
