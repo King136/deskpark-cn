@@ -17,6 +17,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { MatchScoreCard, MyScoreCard, RoomScoreTable } from '../components/ScoreBoard';
 import { TableHud } from '../components/TableHud';
+import { callout } from '../lib/callout';
 import { Button, Sheet, toast } from '../components/ui';
 import { replyChat } from '../lib/ai/agent';
 import { aiEvents, aiSpeech } from '../lib/ai/events';
@@ -353,6 +354,22 @@ export function TableShell({
     setBursts((b) => [...b, { emote, name, at }].slice(-3));
     window.setTimeout(() => setBursts((b) => b.filter((x) => x.at !== at)), 1800);
   };
+  // 通用轮次播报：所有玩法都适用（掼蛋/德州/麻将/象棋等此前完全没有报牌）
+  const turnCueSpoken = useRef('');
+  useEffect(() => {
+    const v = ctl.view as unknown as { turn?: number | null; over?: boolean } | null;
+    if (!v || v.over || ctl.seat === null) return;
+    const mine = v.turn === ctl.seat;
+    const sig = mine ? `me:${(ctl as unknown as { round?: number }).round ?? ''}` : '';
+    if (mine && turnCueSpoken.current !== sig) {
+      turnCueSpoken.current = sig;
+      callout('轮到你');
+    } else if (!mine) {
+      turnCueSpoken.current = '';
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctl.view]);
+
   const offline = ctl.mode === 'online' && net.status !== 'open';
   const emotes = ctl.mode === 'online' ? net.emotes.filter((e) => Date.now() - e.at < 3500) : [];
 
