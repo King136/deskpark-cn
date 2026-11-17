@@ -216,7 +216,17 @@ export function Home() {
     }
   };
   useEffect(() => {
+    // 每台手机默认就是主机：进屋即起服，别人广播一发现就能连上，不用手动开
+    if (hostAvailable()) {
+      try {
+        void Promise.resolve((startHost as unknown as () => unknown)()).catch(() => {});
+      } catch {
+        /* 浏览器无宿主能力 */
+      }
+    }
     void runScan(true);
+    const timer = setInterval(() => void runScan(true), 10000);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

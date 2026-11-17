@@ -18,10 +18,29 @@ function useThemeSync() {
   useEffect(() => {
     const root = document.documentElement;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyBar = () => {
+      const darkNow = document.documentElement.dataset.theme === 'dark';
+      const name = darkNow ? 'dark' : 'light';
+      try {
+        const cap = (
+          globalThis as {
+            Capacitor?: { Plugins?: { ParkHost?: { setBarTheme?: (o: { theme: string }) => Promise<unknown> } } };
+            ParkHost?: { setBarTheme?: (t: string) => void };
+          }
+        ).Capacitor?.Plugins?.ParkHost;
+        if (cap?.setBarTheme) void cap.setBarTheme({ theme: name }).catch(() => {});
+        else (globalThis as { ParkHost?: { setBarTheme?: (t: string) => void } }).ParkHost?.setBarTheme?.(name);
+      } catch {
+        /* 浏览器 */
+      }
+    };
+
     const apply = () => {
       const dark = s.theme === 'dark' || (s.theme === 'system' && media.matches);
       root.dataset.theme = dark ? 'dark' : 'light';
       const themeName = dark ? 'dark' : 'light';
+      root.style.background = dark ? '#121314' : '#f4f1ea';
+      document.body && (document.body.style.background = dark ? '#121314' : '#f4f1ea');
       try {
         const cap = (
           globalThis as {
@@ -34,13 +53,22 @@ function useThemeSync() {
       } catch {
         /* 浏览器里没有这个方法 */
       }
+      // WebView 起来后插件可能还没挂上，重试几次；回前台也再刷
+      for (const delay of [0, 400, 1200]) setTimeout(applyBar, delay);
       document
         .querySelector('meta[name="theme-color"]')
         ?.setAttribute('content', dark ? '#121314' : '#f4f1ea');
     };
     apply();
     media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') applyBar();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      media.removeEventListener('change', apply);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [s.theme]);
   useEffect(() => {
     if (s.fourColor) document.documentElement.setAttribute('data-four-color', '');

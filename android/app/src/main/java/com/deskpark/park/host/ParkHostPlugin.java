@@ -198,6 +198,8 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
       int color = dark ? 0xFF121314 : 0xFFF4F1EA;
       getActivity().getWindow().setStatusBarColor(color);
       getActivity().getWindow().setNavigationBarColor(color);
+      // FLAG_LAYOUT_NO_LIMITS 下状态栏区域由窗口底色兜底，必须一起刷
+      getActivity().getWindow().getDecorView().setBackgroundColor(color);
       androidx.core.view.WindowInsetsControllerCompat c =
         androidx.core.view.WindowCompat.getInsetsController(
           getActivity().getWindow(),
