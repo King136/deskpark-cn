@@ -125,8 +125,14 @@ function htmlClip(key: string): HTMLAudioElement | null {
   }
 }
 
+const clipPlayedAt = new Map<string, number>();
+
 function playClip(key: string): boolean {
-  if (!key || !settings.get().sound) return false;
+  if (!key) return false;
+  const now = Date.now();
+  const last = clipPlayedAt.get(key) ?? 0;
+  if (now - last < 1100) return true; // 同一句不重复念两遍
+  clipPlayedAt.set(key, now);
   const ctx = voiceContext();
   if (!ctx) return false;
   const buf = voiceBufs.get(key);

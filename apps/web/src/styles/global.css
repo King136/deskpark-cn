@@ -108,3 +108,8 @@ p {
     transform: scale(1);
   }
 }
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+}

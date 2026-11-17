@@ -70,6 +70,23 @@ public class MainActivity extends BridgeActivity {
     private boolean ttsReady = false;
     private String pendingSpeech = null;
 
+    /** 状态栏 / 导航栏跟随网页主题，避免顶部出现一条不搭的白/黑带 */
+    @android.webkit.JavascriptInterface
+    public void setBarTheme(final String theme) {
+      runOnUiThread(() -> {
+        boolean dark = "dark".equals(theme);
+        int color = dark ? 0xFF121314 : 0xFFF4F1EA;
+        getWindow().setStatusBarColor(color);
+        getWindow().setNavigationBarColor(color);
+        androidx.core.view.WindowInsetsControllerCompat c = WindowCompat.getInsetsController(
+          getWindow(),
+          getWindow().getDecorView()
+        );
+        c.setAppearanceLightStatusBars(!dark);
+        c.setAppearanceLightNavigationBars(!dark);
+      });
+    }
+
     /** 网页存档（昵称/设置等）镜像到原生，避免 WebView 清缓存后漂移 */
     @android.webkit.JavascriptInterface
     public String getPref(String key) {

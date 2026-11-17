@@ -21,6 +21,13 @@ function useThemeSync() {
     const apply = () => {
       const dark = s.theme === 'dark' || (s.theme === 'system' && media.matches);
       root.dataset.theme = dark ? 'dark' : 'light';
+      try {
+        (globalThis as { ParkHost?: { setBarTheme?: (t: string) => void } }).ParkHost?.setBarTheme?.(
+          dark ? 'dark' : 'light',
+        );
+      } catch {
+        /* 浏览器里没有这个方法 */
+      }
       document
         .querySelector('meta[name="theme-color"]')
         ?.setAttribute('content', dark ? '#121314' : '#f4f1ea');
