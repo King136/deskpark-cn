@@ -70,17 +70,75 @@ function clipKey(text: string): string {
   return '';
 }
 
-/** 网页端直接播内置 mp3（APK 里就是 assets/public/clips） */
+/**
+ * 网页端内置语音：用 WebAudio 解码后播放。
+ * 好处是首次点击解锁后不受 autoplay 限制，播放是内存缓冲、没有解码延迟。
+ */
+let voiceCtx: AudioContext | null = null;
+const voiceBufs = new Map<string, AudioBuffer>();
+const voiceLoading = new Map<string, Promise<AudioBuffer | null>>();
+
+function voiceContext(): AudioContext | null {
+  try {
+    voiceCtx = voiceCtx ?? new AudioContext();
+    if (voiceCtx.state === 'suspended') void voiceCtx.resume();
+    return voiceCtx;
+  } catch {
+    return null;
+  }
+}
+
+function loadVoice(key: string): Promise<AudioBuffer | null> {
+  const cached = voiceBufs.get(key);
+  if (cached) return Promise.resolve(cached);
+  const pending = voiceLoading.get(key);
+  if (pending) return pending;
+  const ctx = voiceContext();
+  if (!ctx) return Promise.resolve(null);
+  const p = fetch(`/clips/${key}.mp3`)
+    .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('no clip'))))
+    .then((ab) => ctx.decodeAudioData(ab))
+    .then((buf) => {
+      voiceBufs.set(key, buf);
+      return buf;
+    })
+    .catch(() => null);
+  voiceLoading.set(key, p);
+  return p;
+}
+
 function playClip(key: string): boolean {
   if (!key || !settings.get().sound) return false;
-  try {
-    const a = new Audio(`/clips/${key}.mp3`);
-    a.volume = 1;
-    void a.play();
-    return true;
-  } catch {
-    return false;
+  const ctx = voiceContext();
+  if (!ctx) return false;
+  const buf = voiceBufs.get(key);
+  if (buf) {
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start();
+      return true;
+    } catch {
+      return false;
+    }
   }
+  // 还没解码好：先触发加载并返回 true，下一次同类报牌就是零延迟
+  void loadVoice(key);
+  return false;
+}
+
+/** 首次触摸即解锁音频并预热常用片段，避免第一声被 autoplay 拦掉 */
+export function primeVoice(): void {
+  if (typeof document === 'undefined') return;
+  const warm = () => {
+    voiceContext();
+    for (const k of ['dan', 'dui', 'shun', 'bujiao', 'baodan', 'qiang', 'jiaodizhu', 'zhadan'])
+      void loadVoice(k);
+  };
+  document.addEventListener('pointerdown', warm, { once: true });
+  document.addEventListener('touchstart', warm, { once: true });
+  void loadVoice('dan');
 }
 
 function pluginSpeak(text: string, key = ''): boolean {
@@ -151,14 +209,6 @@ function showBalloon(text: string): void {
     if (layer.childElementCount > 3) layer.firstElementChild?.remove();
   } catch {
     /* SSR / 无 DOM 时忽略 */
-  }
-}
-
-export function primeVoice(): void {
-  try {
-    globalThis.speechSynthesis?.getVoices();
-  } catch {
-    /* 没有 TTS 也不影响画面 */
   }
 }
 
