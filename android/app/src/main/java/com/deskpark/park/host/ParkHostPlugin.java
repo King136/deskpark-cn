@@ -222,8 +222,9 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
       } catch (Exception e) {
         color = 0xFF121314;
       }
-      getActivity().getWindow().setStatusBarColor(color);
-      getActivity().getWindow().setNavigationBarColor(color);
+      // 状态栏本身保持透明：不透明色会盖住网页自己的顶栏，正是"牌局里颜色不统一"的原因
+      getActivity().getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+      getActivity().getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
       getActivity().getWindow().getDecorView().setBackgroundColor(color);
       double lum = 0.299 * android.graphics.Color.red(color)
         + 0.587 * android.graphics.Color.green(color)

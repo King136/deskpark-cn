@@ -81,3 +81,10 @@ export async function scanLan(): Promise<FoundHost[]> {
   }
   return found.sort((a, b) => b.rooms.length - a.rooms.length);
 }
+
+
+/** 按房号在局域网里找主机：本机自开的服里没有这间房时，必须改连真正持有它的那台 */
+export async function findRoomHost(code: string): Promise<FoundHost | null> {
+  const list = await scanLan();
+  return list.find((h) => h.rooms?.some((r) => r.code.toUpperCase() === code.toUpperCase())) ?? null;
+}

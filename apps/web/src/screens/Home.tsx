@@ -3,7 +3,7 @@ import { getGame } from '@park/engine';
 import { normalizeRoomCode } from '@park/protocol';
 import { ArrowRight, Blocks, Dice5, Gamepad2, Grid2x2, LayoutGrid, Play, Settings2, Sparkles, UserRound, Users } from 'lucide-react';
 import type { CSSProperties, ReactElement } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PlayingCard } from '../components/PlayingCard';
 import { PavilionMark } from '../components/Brand';
 import { MahjongTile } from '../components/MahjongTile';
@@ -15,7 +15,7 @@ import { clearSavedLocal, loadSavedLocal } from '../lib/controller';
 import { online, useOnline } from '../lib/online';
 import { currentHost, hostAvailable, startHost } from '../lib/localHost';
 import { serverUrl, setServerOverride } from '../lib/platform';
-import { scanLan, type FoundHost } from '../lib/discover';
+import { findRoomHost, scanLan, type FoundHost } from '../lib/discover';
 import { navigate } from '../lib/router';
 import { VERSION_TEXT } from '../lib/version';
 import { profile } from '../lib/store';
@@ -147,9 +147,14 @@ export function Home() {
   const resume = GAME_UIS.map((g) => (loadSavedLocal(g.id) ? g.id : null)).find(Boolean) ?? null;
   const resumeDef = resume ? getGame(resume) : null;
 
-  const join = () => {
+  const join = async () => {
     const c = normalizeRoomCode(code);
-    if (c.length === 4) navigate(`/room/${c}`);
+    if (c.length !== 4) return;
+    // 每台手机都自开主机，房号天然只存在于创建它的那台上：
+    // 先在局域网里核对，找到就把地址切过去，再进房，否则永远提示「没有这个房间」
+    const host = await findRoomHost(c);
+    if (host) setServerOverride(`ws://${host.ip}:${host.port}/ws`);
+    navigate(`/room/${c}`);
   };
 
   // 房号输入满 4 位就实时问主机：这间房在不在、什么玩法、几个人
@@ -206,8 +211,14 @@ export function Home() {
       setHosts(list);
       const current = serverUrl();
       const live = list.filter((h) => h.rooms.length > 0);
-      if (live.length === 1 && /127\.0\.0\.1/.test(current) && auto) {
+      if (live.length === 1 && /127\.0\.0\.1/.test(current) && auto && !pinned.current) {
         setServerOverride(`ws://${live[0].ip}:${live[0].port}/ws`);
+        try {
+          online.disconnect();
+          online.connect();
+        } catch {
+          /* 忽略 */
+        }
         online.reconnectNow();
         toast(`已自动连上局域网主机 ${live[0].ip}`);
       }
@@ -335,7 +346,7 @@ export function Home() {
             className="join"
             onSubmit={(e) => {
               e.preventDefault();
-              join();
+              void join();
             }}
           >
             <input
