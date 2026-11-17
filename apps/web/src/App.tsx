@@ -21,10 +21,16 @@ function useThemeSync() {
     const apply = () => {
       const dark = s.theme === 'dark' || (s.theme === 'system' && media.matches);
       root.dataset.theme = dark ? 'dark' : 'light';
+      const themeName = dark ? 'dark' : 'light';
       try {
-        (globalThis as { ParkHost?: { setBarTheme?: (t: string) => void } }).ParkHost?.setBarTheme?.(
-          dark ? 'dark' : 'light',
-        );
+        const cap = (
+          globalThis as {
+            Capacitor?: { Plugins?: { ParkHost?: { setBarTheme?: (o: { theme: string }) => Promise<unknown> } } };
+            ParkHost?: { setBarTheme?: (t: string) => void };
+          }
+        ).Capacitor?.Plugins?.ParkHost;
+        if (cap?.setBarTheme) void cap.setBarTheme({ theme: themeName }).catch(() => {});
+        else (globalThis as { ParkHost?: { setBarTheme?: (t: string) => void } }).ParkHost?.setBarTheme?.(themeName);
       } catch {
         /* 浏览器里没有这个方法 */
       }

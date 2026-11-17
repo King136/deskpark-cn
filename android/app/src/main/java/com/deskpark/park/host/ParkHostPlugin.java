@@ -189,6 +189,26 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
     }
   }
 
+  /** 状态栏 / 导航栏跟随网页主题 */
+  @PluginMethod
+  public void setBarTheme(PluginCall call) {
+    final String theme = call.getString("theme", "light");
+    getActivity().runOnUiThread(() -> {
+      boolean dark = "dark".equals(theme);
+      int color = dark ? 0xFF121314 : 0xFFF4F1EA;
+      getActivity().getWindow().setStatusBarColor(color);
+      getActivity().getWindow().setNavigationBarColor(color);
+      androidx.core.view.WindowInsetsControllerCompat c =
+        androidx.core.view.WindowCompat.getInsetsController(
+          getActivity().getWindow(),
+          getActivity().getWindow().getDecorView()
+        );
+      c.setAppearanceLightStatusBars(!dark);
+      c.setAppearanceLightNavigationBars(!dark);
+    });
+    call.resolve();
+  }
+
   /** 报牌语音（Capacitor 通道） */
   @PluginMethod
   public void speak(PluginCall call) {

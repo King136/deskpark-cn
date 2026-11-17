@@ -265,11 +265,15 @@ export function callout(text: string, opts?: { force?: boolean }): void {
   // 之前这里是静音的唯一原因——开关一关，牌局里就整场不响。
   void opts;
   const key = clipKey(text);
-  // 双通道并行：网页音频 + 原生 SoundPool 同时尝试，任一成功即可发声
-  const jsPlayed = playClip(key);
-  const nativeTry = pluginSpeak(text, key);
-  if (!jsPlayed) nativeSpeak(text);
-  if (jsPlayed || nativeTry) return;
+  // 只选一条通道：有原生插件就走原生，否则走网页音频。
+  // 之前两条并行播放，是"每句都念两遍"的直接原因。
+  const native = !!(globalThis as CapPlugins).Capacitor?.Plugins?.ParkHost?.speak;
+  if (native) {
+    if (pluginSpeak(text, key)) return;
+  } else {
+    if (playClip(key)) return;
+    if (nativeSpeak(text)) return;
+  }
   try {
     const s = globalThis.speechSynthesis;
     if (!s) {
