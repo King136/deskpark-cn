@@ -28,6 +28,7 @@ describe('基础设施', () => {
       'highcard',
       'gomoku',
       'reversi',
+      'g2048',
     ]);
     const ddz = listGames()[0];
     expect(normalizeOptions(ddz, { baseScore: 999, rounds: 3 })).toEqual({

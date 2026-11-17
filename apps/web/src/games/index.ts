@@ -6,6 +6,7 @@ import { ChessArt } from './chess/pieces';
 import { GemGuildArt } from './gemguild/art';
 import { GomokuArt } from './gomoku/GomokuArt';
 import { ReversiArt } from './reversi/ReversiArt';
+import { G2048Art } from './g2048/G2048Art';
 import { HexArt } from './hexisle/art';
 import { OneCardArt } from './onecard/cards';
 import { SpellArt } from './spellstones/spells';
@@ -60,6 +61,15 @@ export const GAME_UIS: GameUI[] = [
     people: '2 人',
     badge: '新',
     Art: GomokuArt,
+  },
+  {
+    id: 'g2048',
+    Board: lazy(() => import('./g2048/G2048Board')),
+    tint: ['#4a5c50', '#2a3630'],
+    showcase: [c(1, 'S', 2), c(2, 'H', 4), c(3, 'D', 8)],
+    people: '单人',
+    badge: '新',
+    Art: G2048Art,
   },
   {
     id: 'reversi',
