@@ -143,6 +143,8 @@ export function Home() {
   const [setup, setSetup] = useState<{ gameId: string; mode: 'local' | 'online' } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [code, setCode] = useState('');
+  // 手动接入就用这台主机，别再被 10 秒轮询切走
+  const pinned = useRef(false);
   const [cat, setCat] = useState<GameCategory | 'all'>('all');
   const resume = GAME_UIS.map((g) => (loadSavedLocal(g.id) ? g.id : null)).find(Boolean) ?? null;
   const resumeDef = resume ? getGame(resume) : null;
