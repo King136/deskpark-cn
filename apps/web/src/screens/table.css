@@ -27,6 +27,7 @@
 /* ---------- 顶部常驻工具条 ---------- */
 .table__top {
   position: relative;
+  background: var(--table-chrome, #121314);
   z-index: 60;
   flex: none;
   height: calc(52px + env(safe-area-inset-top));
