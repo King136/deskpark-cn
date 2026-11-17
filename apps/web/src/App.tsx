@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { Splash } from './components/Splash';
 import { Button, Sheet } from './components/ui';
 import { ToastHost, toast } from './components/ui';
+import { syncBarColor } from './lib/barcolor';
 import { useOnline } from './lib/online';
 import { useRoute } from './lib/router';
 import { settings } from './lib/store';
@@ -87,6 +88,10 @@ export function App() {
   const route = useRoute();
   const [askExit, setAskExit] = useState(false);
   useThemeSync();
+  useEffect(() => {
+    const t = setTimeout(() => syncBarColor(), 60);
+    return () => clearTimeout(t);
+  }, [route]);
   useOnlineErrors();
 
   // 返回键：先退一层，回到大厅后再按才提示确认退出，避免误触变大退

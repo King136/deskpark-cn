@@ -301,10 +301,14 @@ export function Home() {
           </div>
         </header>
 
-        {(scanning || hosts.length > 0) && (
+        {(
           <section className="lanbar">
             <span className="lanbar__label">
-              {scanning ? '正在扫描局域网…' : `局域网发现 ${hosts.length} 台主机`}
+              {scanning
+                ? '正在扫描局域网…'
+                : hosts.length
+                  ? `局域网发现 ${hosts.length} 台主机`
+                  : '局域网：未发现主机，点重扫'}{' '}
             </span>
             {hosts.map((h) => (
               <button

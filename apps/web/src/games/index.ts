@@ -7,6 +7,7 @@ import { GemGuildArt } from './gemguild/art';
 import { GomokuArt } from './gomoku/GomokuArt';
 import { ReversiArt } from './reversi/ReversiArt';
 import { G2048Art } from './g2048/G2048Art';
+import { MinesArt } from './mines/MinesArt';
 import { HexArt } from './hexisle/art';
 import { OneCardArt } from './onecard/cards';
 import { SpellArt } from './spellstones/spells';
@@ -61,6 +62,15 @@ export const GAME_UIS: GameUI[] = [
     people: '2 人',
     badge: '新',
     Art: GomokuArt,
+  },
+  {
+    id: 'mines',
+    Board: lazy(() => import('./mines/MinesBoard')),
+    tint: ['#4a4f79', '#3a3f52'],
+    showcase: [c(1, 'S', 1), c(1, 'H', 3), c(2, 'D', 2)],
+    people: '单人',
+    badge: '新',
+    Art: MinesArt,
   },
   {
     id: 'g2048',

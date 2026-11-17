@@ -211,6 +211,58 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
     call.resolve();
   }
 
+  /** 任意底色：牌局顶栏比大厅浅，交给网页按真实取色回传 */
+  @PluginMethod
+  public void setBarColor(PluginCall call) {
+    final String hex = call.getString("color", "#121314");
+    getActivity().runOnUiThread(() -> {
+      int color;
+      try {
+        color = android.graphics.Color.parseColor(hex);
+      } catch (Exception e) {
+        color = 0xFF121314;
+      }
+      getActivity().getWindow().setStatusBarColor(color);
+      getActivity().getWindow().setNavigationBarColor(color);
+      getActivity().getWindow().getDecorView().setBackgroundColor(color);
+      double lum = 0.299 * android.graphics.Color.red(color)
+        + 0.587 * android.graphics.Color.green(color)
+        + 0.114 * android.graphics.Color.blue(color);
+      androidx.core.view.WindowInsetsControllerCompat c =
+        androidx.core.view.WindowCompat.getInsetsController(
+          getActivity().getWindow(),
+          getActivity().getWindow().getDecorView()
+        );
+      c.setAppearanceLightStatusBars(lum > 150);
+      c.setAppearanceLightNavigationBars(lum > 150);
+    });
+    call.resolve();
+  }
+
+  /** 本机 Wi-Fi 网段，网页据此扫同网段主机（window 桥注入失败时的备用通道） */
+  @PluginMethod
+  public void lanIp(PluginCall call) {
+    String ip = "";
+    try {
+      java.util.List<java.net.NetworkInterface> list =
+        java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces());
+      for (java.net.NetworkInterface ni : list) {
+        if (!ni.isUp() || ni.isLoopback()) continue;
+        String name = ni.getName() == null ? "" : ni.getName().toLowerCase();
+        if (name.startsWith("rmnet") || name.startsWith("ccmni") || name.startsWith("dummy")) continue;
+        for (java.net.InetAddress addr : java.util.Collections.list(ni.getInetAddresses())) {
+          if (addr.isLoopbackAddress() || !(addr instanceof java.net.Inet4Address)) continue;
+          ip = addr.getHostAddress();
+          break;
+        }
+        if (!ip.isEmpty()) break;
+      }
+    } catch (Exception ignored) {
+      /* 拿不到就返回空 */
+    }
+    call.resolve(new com.getcapacitor.JSObject().put("ip", ip));
+  }
+
   /** 报牌语音（Capacitor 通道） */
   @PluginMethod
   public void speak(PluginCall call) {

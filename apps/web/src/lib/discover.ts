@@ -20,10 +20,22 @@ export interface FoundHost {
 
 const PORT = 8787;
 
-function lanIp(): string {
+type CapParkHost = { lanIp?: () => Promise<{ ip?: string }> };
+
+async function lanIp(): Promise<string> {
   const host = (globalThis as { ParkHost?: { lanIp?: () => string } }).ParkHost;
   try {
-    return host?.lanIp?.() ?? '';
+    const ip = host?.lanIp?.();
+    if (ip) return ip;
+  } catch {
+    /* 继续走插件 */
+  }
+  // 部分机型 addJavascriptInterface 注入比页面初始化晚，必须再问 Capacitor 插件
+  const cap = (globalThis as { Capacitor?: { Plugins?: { ParkHost?: CapParkHost } } }).Capacitor
+    ?.Plugins?.ParkHost;
+  try {
+    const res = await cap?.lanIp?.();
+    return res?.ip ?? '';
   } catch {
     return '';
   }
@@ -43,7 +55,7 @@ async function probe(ip: string, signal: AbortSignal): Promise<FoundHost | null>
 
 /** 并行扫一个 /24，单地址 500ms 超时，整体约 8 秒内出结果 */
 export async function scanLan(): Promise<FoundHost[]> {
-  const self = lanIp();
+  const self = await lanIp();
   if (!self) return [];
   const dot = self.lastIndexOf('.');
   if (dot < 0) return [];
