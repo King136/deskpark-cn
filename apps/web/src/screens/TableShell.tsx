@@ -347,6 +347,12 @@ export function TableShell({
     }
   };
 
+  const [bursts, setBursts] = useState<{ emote: string; name: string; at: number }[]>([]);
+  const fireBurst = (emote: string, name: string) => {
+    const at = Date.now();
+    setBursts((b) => [...b, { emote, name, at }].slice(-3));
+    window.setTimeout(() => setBursts((b) => b.filter((x) => x.at !== at)), 1800);
+  };
   const offline = ctl.mode === 'online' && net.status !== 'open';
   const emotes = ctl.mode === 'online' ? net.emotes.filter((e) => Date.now() - e.at < 3500) : [];
 
@@ -452,6 +458,7 @@ export function TableShell({
             myId: myChatId,
             onSend: sendChat,
             onEmote: (emote) => {
+              fireBurst(emote, ctl.players[ctl.seat ?? 0]?.name ?? '');
               pushLocal(ctl.seat ?? 0, emote);
               if (online_ && net.status === 'open') online.send({ t: 'emote', emote });
             },
@@ -475,7 +482,7 @@ export function TableShell({
       )}
 
       <div className="emote-layer">
-        {emotes.map((e) => {
+        {[...emotes, ...bursts].map((e) => {
           // 每条表情在画布上炸开 7 个方向，位置由时间戳散列，保证每次都不同
           const seed = e.at % 97;
           return (

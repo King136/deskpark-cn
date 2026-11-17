@@ -177,7 +177,7 @@ export function callout(text: string, opts?: { force?: boolean }): void {
 
   if (!settings.get().sound && !opts?.force) return;
   const key = clipKey(text);
-  if (pluginSpeak(text, key) || nativeSpeak(text) || playClip(key)) return;
+  if (playClip(key) || pluginSpeak(text, key) || nativeSpeak(text)) return;
   try {
     const s = globalThis.speechSynthesis;
     if (!s) {
