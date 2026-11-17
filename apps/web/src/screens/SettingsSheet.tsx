@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, Field, Segmented, Sheet, Switch, toast } from '../components/ui';
+import { callout } from '../lib/callout';
 import { testConnection } from '../lib/ai/agent';
 import type { AiProtocol } from '../lib/ai/settings';
 import { AI_DEFAULTS, aiSettings } from '../lib/ai/settings';
@@ -440,8 +441,19 @@ export function SettingsSheet({
       <Field label="记牌器" hint="斗地主中显示剩余的牌">
         <Switch checked={s.cardCounter} onChange={(v) => settings.set({ cardCounter: v })} />
       </Field>
-      <Field label="音效">
+      <Field label="音效" hint="报牌语音与操作音">
         <Switch checked={s.sound} onChange={(v) => settings.set({ sound: v })} />
+      </Field>
+      <Field label="试听报牌" hint="听不到声音时点这里自测">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            callout('炸弹', { force: true });
+            toast('应当听到「炸弹」两个字');
+          }}
+        >
+          播放「炸弹」
+        </Button>
       </Field>
       <Field label="界面">
         <Segmented

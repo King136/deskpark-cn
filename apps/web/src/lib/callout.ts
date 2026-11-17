@@ -107,6 +107,24 @@ function loadVoice(key: string): Promise<AudioBuffer | null> {
   return p;
 }
 
+const htmlClips = new Map<string, HTMLAudioElement>();
+
+function htmlClip(key: string): HTMLAudioElement | null {
+  try {
+    let a = htmlClips.get(key);
+    if (!a) {
+      a = new Audio(`/clips/${key}.mp3`);
+      a.preload = 'auto';
+      a.setAttribute('playsinline', '');
+      a.load();
+      htmlClips.set(key, a);
+    }
+    return a;
+  } catch {
+    return null;
+  }
+}
+
 function playClip(key: string): boolean {
   if (!key || !settings.get().sound) return false;
   const ctx = voiceContext();
@@ -123,8 +141,18 @@ function playClip(key: string): boolean {
       return false;
     }
   }
-  // 还没解码好：先触发加载并返回 true，下一次同类报牌就是零延迟
+  // 还没解码好：立刻用 <audio> 播（WebView 里最稳），同时后台解码缓存
   void loadVoice(key);
+  const el = htmlClip(key);
+  if (el) {
+    try {
+      el.currentTime = 0;
+      void el.play().catch(() => {});
+      return true;
+    } catch {
+      return false;
+    }
+  }
   return false;
 }
 
@@ -133,8 +161,10 @@ export function primeVoice(): void {
   if (typeof document === 'undefined') return;
   const warm = () => {
     voiceContext();
-    for (const k of ['dan', 'dui', 'shun', 'bujiao', 'baodan', 'qiang', 'jiaodizhu', 'zhadan'])
+    for (const k of ['dan', 'dui', 'shun', 'bujiao', 'baodan', 'qiang', 'jiaodizhu', 'zhadan']) {
       void loadVoice(k);
+      htmlClip(k);
+    }
   };
   document.addEventListener('pointerdown', warm, { once: true });
   document.addEventListener('touchstart', warm, { once: true });
