@@ -255,9 +255,15 @@ export function callout(text: string, opts?: { force?: boolean }): void {
   for (const f of subs) f(latest);
   showBalloon(text);
 
-  if (!settings.get().sound && !opts?.force) return;
+  // 报牌语音永远播：设置里的「音效」只管按钮/操作音，
+  // 之前这里是静音的唯一原因——开关一关，牌局里就整场不响。
+  void opts;
   const key = clipKey(text);
-  if (playClip(key) || pluginSpeak(text, key) || nativeSpeak(text)) return;
+  // 双通道并行：网页音频 + 原生 SoundPool 同时尝试，任一成功即可发声
+  const jsPlayed = playClip(key);
+  const nativeTry = pluginSpeak(text, key);
+  if (!jsPlayed) nativeSpeak(text);
+  if (jsPlayed || nativeTry) return;
   try {
     const s = globalThis.speechSynthesis;
     if (!s) {

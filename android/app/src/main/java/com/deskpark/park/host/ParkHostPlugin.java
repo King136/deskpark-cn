@@ -204,6 +204,13 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
       }
     }
     final String text = call.getString("text", "");
+    if (key != null && !key.isEmpty() && pool != null && !clipIds.containsKey(key)) {
+      try {
+        android.media.ToneGenerator tg = new android.media.ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 70);
+        tg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 120);
+      } catch (Throwable ignored) {
+      }
+    }
     if (text == null || text.isEmpty()) {
       call.resolve();
       return;
