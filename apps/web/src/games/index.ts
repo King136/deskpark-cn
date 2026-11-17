@@ -5,6 +5,7 @@ import type { GameController } from '../lib/controller';
 import { ChessArt } from './chess/pieces';
 import { GemGuildArt } from './gemguild/art';
 import { GomokuArt } from './gomoku/GomokuArt';
+import { ReversiArt } from './reversi/ReversiArt';
 import { HexArt } from './hexisle/art';
 import { OneCardArt } from './onecard/cards';
 import { SpellArt } from './spellstones/spells';
@@ -59,6 +60,14 @@ export const GAME_UIS: GameUI[] = [
     people: '2 人',
     badge: '新',
     Art: GomokuArt,
+  },
+  {
+    id: 'reversi',
+    Board: lazy(() => import('./reversi/ReversiBoard')),
+    tint: ['#2f6b55', '#1d3f34'],
+    showcase: [c(1, 'S', 13), c(2, 'C', 12), c(3, 'D', 11)],
+    people: '2 人',
+    Art: ReversiArt,
   },
   {
     id: 'texas',

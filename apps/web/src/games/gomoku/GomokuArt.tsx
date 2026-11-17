@@ -1,3 +1,5 @@
+import './gomoku.css';
+
 /** 大厅插画：木盘 + 交叉线 + 几颗黑白子（SVG，任意尺寸都清晰） */
 export function GomokuArt() {
   const n = 15;

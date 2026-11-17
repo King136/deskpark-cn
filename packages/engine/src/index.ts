@@ -14,6 +14,7 @@ import { guandan } from './games/guandan';
 import { hexisle } from './games/hexisle';
 import { highcard } from './games/highcard';
 import { gomoku } from './games/gomoku';
+import { reversi } from './games/reversi';
 import { onecard } from './games/onecard';
 import { sichuan } from './games/sichuan';
 import { spellstones } from './games/spellstones';
@@ -32,6 +33,7 @@ export * as gg from './games/gemguild';
 export * as ch from './games/chess';
 export * as xq from './games/xiangqi';
 export * as gm from './games/gomoku';
+export * as rv from './games/reversi';
 export * as mj from './mahjong';
 
 export {
@@ -47,6 +49,7 @@ export {
   gemguild,
   highcard,
   gomoku,
+  reversi,
 };
 
 // 内置玩法（顺序即大厅展示顺序）
@@ -63,5 +66,6 @@ for (const g of [
   gemguild,
   highcard,
   gomoku,
+  reversi,
 ])
   registerGame(g);

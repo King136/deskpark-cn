@@ -133,6 +133,26 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movesSig, over]);
 
+  // 叫分：谁叫了 / 谁不叫，都要有语音，不然只有牌型在响
+  const bidsSig = v.bids.map((b) => b ?? -1).join(',');
+  const seenBids = useRef('');
+  useEffect(() => {
+    if (spectator) return;
+    if (seenBids.current === '') {
+      seenBids.current = bidsSig;
+      return;
+    }
+    const prev = seenBids.current.split(',').map((x) => Number(x));
+    seenBids.current = bidsSig;
+    v.bids.forEach((b, s) => {
+      if (b === null || prev[s] !== -1) return;
+      const who = players[s]?.name ?? '';
+      if (b === 0) callout(`${who} 不抢`);
+      else callout(`${who} 叫${b}分`);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bidsSig, spectator]);
+
   // 报牌：有人只剩一两张时喊一声，和线下打牌一致
   const counts = v.handCounts?.join(',') ?? '';
   const reported = useRef('');

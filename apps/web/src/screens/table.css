@@ -735,3 +735,48 @@ html.park-table #root {
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* ---------- 表情烟花：从画布中心无序炸开 ---------- */
+.emote-burst {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.emote-spark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: clamp(20px, 4.6vmin, 30px);
+  line-height: 1;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.32));
+  animation: emote-spark 1.5s cubic-bezier(0.16, 0.8, 0.3, 1) var(--d, 0ms) both;
+  --x: 0vmin;
+  --y: -10vmin;
+}
+@keyframes emote-spark {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.4) rotate(0deg); }
+  18% { opacity: 1; transform: translate(calc(var(--x) * 0.35), calc(var(--y) * 0.35)) scale(var(--s, 1)) rotate(calc(var(--r, 0deg) * 0.4)); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--x), calc(var(--y) + 6vmin)) scale(calc(var(--s, 1) * 0.85)) rotate(var(--r, 0deg)); }
+}
+.emote-who {
+  position: absolute;
+  left: 50%;
+  top: 2.2em;
+  translate: -50% 0;
+  font-size: 11px;
+  color: var(--felt-ink-2);
+  background: rgba(0, 0, 0, 0.28);
+  padding: 1px 6px;
+  border-radius: 99px;
+  white-space: nowrap;
+  animation: emote-who 1.5s ease both;
+}
+@keyframes emote-who {
+  0%, 20% { opacity: 0; }
+  40%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}

@@ -475,12 +475,36 @@ export function TableShell({
       )}
 
       <div className="emote-layer">
-        {emotes.map((e) => (
-          <div key={e.at + e.name} className="emote-float">
-            <span>{e.emote}</span>
-            <small>{e.name}</small>
-          </div>
-        ))}
+        {emotes.map((e) => {
+          // 每条表情在画布上炸开 7 个方向，位置由时间戳散列，保证每次都不同
+          const seed = e.at % 97;
+          return (
+            <div key={e.at + e.name} className="emote-burst">
+              {Array.from({ length: 7 }, (_, i) => {
+                const a = ((seed + i * 51) % 360) * (Math.PI / 180);
+                const r = 26 + ((seed + i * 13) % 40);
+                return (
+                  <span
+                    key={i}
+                    className="emote-spark"
+                    style={
+                      {
+                        '--x': `${Math.cos(a) * r}vmin`,
+                        '--y': `${Math.sin(a) * r - 8}vmin`,
+                        '--r': `${((seed + i * 29) % 60) - 30}deg`,
+                        '--d': `${i * 60}ms`,
+                        '--s': `${0.9 + ((seed + i * 7) % 5) / 10}`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {e.emote}
+                  </span>
+                );
+              })}
+              <small className="emote-who">{e.name}</small>
+            </div>
+          );
+        })}
       </div>
 
       {online_ && net.matchScore && net.matchScore.matchNo !== dismissedScore && (
