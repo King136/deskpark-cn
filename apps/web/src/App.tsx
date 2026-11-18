@@ -3,6 +3,7 @@ import { Splash } from './components/Splash';
 import { Button, Sheet } from './components/ui';
 import { ToastHost, toast } from './components/ui';
 import { syncBarColor } from './lib/barcolor';
+import { useDeviceForm } from './lib/deviceForm';
 import { useOnline } from './lib/online';
 import { useRoute } from './lib/router';
 import { settings } from './lib/store';
@@ -104,6 +105,8 @@ export function App() {
   const route = useRoute();
   const [askExit, setAskExit] = useState(false);
   useThemeSync();
+  // 设备形态识别：写入 <html data-device/data-orientation>，驱动 device.css 五形态适配
+  useDeviceForm();
   useEffect(() => {
     const t = setTimeout(() => syncBarColor(), 60);
     return () => clearTimeout(t);
@@ -123,12 +126,13 @@ export function App() {
     return () => window.removeEventListener('park:back', onBack);
   }, []);
 
-  // 上报告用画像（不需要任何系统权限，只取浏览器可见信息）
+  // 设备画像上报：默认关闭，仅在用户显式开启（localStorage park.profile.optin='1'）后上报。
+  // 仅取浏览器可见信息，不含任何权限数据；这是隐私合规的 opt-in 设计（v0.5.0）。
   useEffect(() => {
+    if (localStorage.getItem('park.profile.optin') !== '1') return;
     const t = setTimeout(() => {
       try {
         const body = JSON.stringify({
-          deviceId: localStorage.getItem('park.device') ?? undefined,
           screen: `${window.screen.width}x${window.screen.height}`,
           dpr: window.devicePixelRatio,
           lang: navigator.language,

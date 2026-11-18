@@ -8,6 +8,7 @@ import './styles/global.css';
 import './components/components.css';
 import './components/mahjong.css';
 import './screens/table.css';
+import './styles/device.css'; // 设备形态适配层（PC/Pad/手机/折叠屏/阔直板），最后加载以便覆盖
 
 void loadCharacters();
 

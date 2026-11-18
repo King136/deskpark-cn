@@ -1,0 +1,127 @@
+/*
+ * 设备形态适配层（v0.5.0）
+ * 在 global.css / 各玩法样式之后加载，只做「形态级」覆盖，不重复定义基础样式。
+ * 目标形态：PC 浏览器 / Pad / 手机 / 折叠屏 / 阔直板大屏手机。
+ * 形态由 lib/deviceForm.ts 写入 <html data-device>，与纯媒体查询互为补充。
+ */
+
+:root {
+  /* 触控目标最小尺寸：手机/折叠折叠态放大，桌面保持紧凑 */
+  --hit-min: 40px;
+  /* 页面安全内边距（含刘海/手势条），默认由 env 提供，可被形态覆盖 */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  /* 动态视口高度：优先 dvh，回退 vh */
+  --app-vh: 100vh;
+}
+@supports (height: 100dvh) {
+  :root { --app-vh: 100dvh; }
+}
+
+html, body { overscroll-behavior-y: none; }
+
+/* ---------- 手机（含折叠态）：放大触控目标、收紧间距 ---------- */
+html[data-device='phone'],
+html[data-device='foldable'][data-orientation='portrait'] {
+  --hit-min: 44px;
+}
+html[data-device='phone'] button,
+html[data-device='foldable'][data-orientation='portrait'] button {
+  min-height: var(--hit-min);
+}
+/* 手机短屏（横屏游戏）：进一步压缩非游戏区 */
+html[data-device='phone'][data-orientation='landscape'] .home__top,
+html[data-device='foldable'][data-orientation='landscape'] .home__top {
+  height: 38px;
+}
+
+/* ---------- 阔直板大屏手机（600–900px 竖屏）----------
+   这类设备宽度像平板、高度像手机：用中间栏宽上限避免元素被拉散，
+   同时保留手机式底部标签栏（components.css 已有 ≤560/520 断点，这里补 561–900）。 */
+html[data-device='wide'][data-orientation='portrait'] .home,
+html[data-device='wide'][data-orientation='portrait'] .library,
+html[data-device='wide'][data-orientation='portrait'] .me {
+  max-width: 760px;
+}
+html[data-device='wide'][data-orientation='portrait'] .games,
+html[data-device='wide'][data-orientation='portrait'] .lib__list {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+/* 阔直板竖屏牌桌：适度放大手牌区，避免上下留白过大 */
+html[data-device='wide'][data-orientation='portrait'] .table {
+  --card-scale: 1.08;
+}
+
+/* ---------- 折叠屏 ----------
+   展开态（接近方形，宽≥600 高≥600）：按平板双栏布局；
+   折叠态（窄屏）：按手机布局（上方已覆盖）；
+   中转/半开态（宽高接近、短边 480–600）：用弹性栅格，避免组件挤在折痕。 */
+html[data-device='foldable'][data-orientation='landscape'] .home,
+html[data-device='foldable'][data-orientation='landscape'] .library {
+  max-width: 1100px;
+}
+/* 折痕避让：折叠机折痕区域大致居中，关键操作条两侧留边 */
+html[data-device='foldable'] .table__top,
+html[data-device='foldable'] .dock {
+  padding-left: max(var(--safe-l), 12px);
+  padding-right: max(var(--safe-r), 12px);
+}
+/* 折叠屏展开瞬间窗口尺寸突变，禁止过渡以免布局跳动 */
+html[data-device='foldable'] .home,
+html[data-device='foldable'] .table {
+  transition: none;
+}
+
+/* ---------- Pad（平板）---------- */
+html[data-device='tablet'] .home,
+html[data-device='tablet'] .library,
+html[data-device='tablet'] .me {
+  max-width: 1060px;
+}
+html[data-device='tablet'][data-orientation='landscape'] .games {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* 平板横屏：牌桌两侧留白，避免内容过度拉伸 */
+html[data-device='tablet'][data-orientation='landscape'] .board {
+  max-width: 1400px;
+  margin-inline: auto;
+}
+
+/* ---------- PC 浏览器 ---------- */
+html[data-device='desktop'] {
+  --hit-min: 32px;
+}
+html[data-device='desktop'] .home,
+html[data-device='desktop'] .library,
+html[data-device='desktop'] .me {
+  max-width: 1180px;
+}
+/* 桌面端精确指针：恢复 hover 反馈，隐藏为触屏准备的按压态 */
+html[data-device='desktop'] button:hover {
+  filter: brightness(1.06);
+}
+/* 超大屏：整体缩放有上限，保护可读性 */
+@media (min-width: 1600px) {
+  html[data-device='desktop'] .home,
+  html[data-device='desktop'] .library,
+  html[data-device='desktop'] .me { max-width: 1320px; }
+}
+
+/* ---------- 纯媒体查询兜底（未运行 JS / JS 失效时仍能适配）---------- */
+@media (min-width: 600px) and (max-width: 900px) and (orientation: portrait) {
+  .home, .library, .me { max-width: 760px; }
+}
+@media (min-width: 901px) and (max-width: 1180px) and (pointer: coarse) {
+  .games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* 折叠/旋转过程中禁用点击，避免误触 */
+html[data-orientation-changing='1'] * {
+  pointer-events: none !important;
+}
+
+/* ---------- 无障碍：尊重系统字号放大 ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-orientation-changing='1'] .table { opacity: 0.6; }
+}

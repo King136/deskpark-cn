@@ -2,6 +2,18 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.5.0] - 2026-11-18
+
+### 新增（多平台 / 多形态设备适配）
+- **五形态设备适配**：新增 `lib/deviceForm.ts`（运行时识别 desktop/tablet/phone/wide/foldable，写到 `<html data-device>`）与 `styles/device.css`（形态级样式覆盖 + 媒体查询兜底）。覆盖 PC 浏览器、Pad、手机、折叠屏（展开/折叠/半开）、阔直板大屏手机。
+- **动态视口**：`--app-vh` 优先 `100dvh`，解决移动端地址栏伸缩导致的牌桌高度跳动。
+- **折叠屏防抖**：`visualViewport` 变化重算形态，旋转/折叠瞬间加 `data-orientation-changing` 禁点防误触、禁过渡防跳动。
+- **隐私 opt-in**：设备画像上报由"默认上报"改为需显式开启（`park.profile.optin`），默认不上传任何设备信息。
+- 版本号统一升至 0.5.0（`version.ts` / `package.json` / `package-lock.json`）。
+
+### 验证
+- typecheck 通过；设备形态识别 9 项单元测试（五类形态）；五视口 headless 截图人工核验布局无溢出/错位。
+
 ## [0.4.0] - 2026-11-18
 
 ### 修复（中危与轻微缺陷销项）
