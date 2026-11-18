@@ -97,6 +97,18 @@ export const klondike: GameDefinition<KlState, KlAction, KlView, KlOptions> = {
   activeSeats: (s) => (s.over ? [] : [0]),
   validate(s, _seat, a) {
     if (s.over) return a.type === 'ready' ? null : '本局已结束';
+    if (a.type !== 'move') return null;
+    const card =
+      a.from === 'waste' ? s.waste[s.waste.length - 1] : s.tableau[a.pile]?.[s.tableau[a.pile].length - 1];
+    if (card === undefined) return '这张牌不能移动';
+    if (a.to === 'foundation') {
+      const f = s.foundations[a.target];
+      if (!f || suit(card) !== a.target || rank(card) !== f.length + 1) return '收牌叠只接同花色下一张';
+      return null;
+    }
+    const col = s.tableau[a.target];
+    if (!col) return '目标列不存在';
+    if (!canStack(card, col[col.length - 1])) return '只能压在红黑相间、点数大一的牌上，空列只接 K';
     return null;
   },
   apply(s0, _seat, a) {

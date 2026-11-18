@@ -76,6 +76,8 @@ export const ludo: GameDefinition<LdState, LdAction, LdView, LdOptions> = {
     if (a.type === 'ready') return null;
     if (seat !== s.turn) return '还没轮到你';
     if (a.type === 'pick' && s.dice === 0) return '先掷骰';
+    if (a.type === 'roll' && s.dice > 0) return '先走完这步再掷';
+    if (a.type === 'pick' && (a.token < 0 || a.token >= s.tokens)) return '没有这枚棋子';
     return null;
   },
   apply(s0, seat, a) {
@@ -114,7 +116,16 @@ export const ludo: GameDefinition<LdState, LdAction, LdView, LdOptions> = {
     return { seat, players: s.players, tokens: s.tokens, track: s.track, pos: s.pos, dice: s.dice, turn: s.turn, over: s.over, winner: s.winner };
   },
   isOver: (s) => s.over,
-  bot() {
+  bot(view, seat) {
+    if (view.dice > 0) {
+      const mine = view.pos[seat] ?? [];
+      let best = 0;
+      mine.forEach((p, i) => {
+        const q = mine[best] ?? -1;
+        if (p >= 0 && p < view.track && (q < 0 || p > q)) best = i;
+      });
+      return { type: 'pick', token: best };
+    }
     return { type: 'roll' };
   },
 };

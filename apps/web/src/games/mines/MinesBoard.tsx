@@ -33,20 +33,37 @@ export default function MinesBoard({ ctl }: { ctl: Ctl }) {
       <button
         key={i}
         className={`ms__cell${open ? ' is-open' : ''}${isBoom ? ' is-boom' : ''}`}
-        onClick={() => tap(i, false)}
+        onClick={(e) => {
+          if (e.currentTarget.dataset.long === '1') {
+            e.currentTarget.dataset.long = '0';
+            return;
+          }
+          tap(i, false);
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           tap(i, true);
         }}
         onTouchStart={(e) => {
-          const t = setTimeout(() => tap(i, true), 380);
-          e.currentTarget.dataset.hold = String(t);
+          const el = e.currentTarget;
+          const timer = window.setTimeout(() => {
+            el.dataset.long = '1';
+            tap(i, true);
+          }, 380);
+          el.dataset.hold = String(timer);
         }}
         onTouchEnd={(e) => {
-          const t = Number(e.currentTarget.dataset.hold ?? 0);
-          if (t) clearTimeout(t);
+          const el = e.currentTarget;
+          const t = Number(el.dataset.hold ?? 0);
+          if (t) window.clearTimeout(t);
+          el.dataset.hold = '0';
         }}
-        style={{ gridTemplateColumns: undefined }}
+        onTouchMove={(e) => {
+          const el = e.currentTarget;
+          const t = Number(el.dataset.hold ?? 0);
+          if (t) window.clearTimeout(t);
+          el.dataset.hold = '0';
+        }}
       >
         {open ? (num === -1 ? '✳' : num || '') : v.flags[i] ? '⚑' : ''}
         {open && num > 0 && (

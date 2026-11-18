@@ -139,23 +139,17 @@ export const checkers: GameDefinition<CkState, CkAction, CkView, CkOptions> = {
     return { seat, size: s.size, board: s.board, turn: s.turn, over: s.over, winner: s.winner, mine: mineN, foe: foeN };
   },
   isOver: (s) => s.over,
-  bot(view) {
-    // 优先吃子，其次随便走一步
+  bot(view, seat) {
+    // 优先吃子，其次随便走一步（seat 是本次该走的座位）
+    const legal = (i: number) => movesFrom(view.board, view.size, i, seat);
     for (let i = 0; i < view.board.length; i++) {
-      const ms = movesFrom(view.board, view.size, i, view.turn === view.seat ? view.turn : 1);
-      if (ms.length) {
-        const jump = ms.find((m) => m.jump !== null);
-        if (jump) return { type: 'move', from: i, to: jump.to };
-      }
+      const ms = legal(i);
+      const jump = ms.find((m) => m.jump !== null);
+      if (jump) return { type: 'move', from: i, to: jump.to };
     }
     for (let i = 0; i < view.board.length; i++) {
-      const v = view.board[i];
-      if (v && (v === 1 || v === 2 || v === 3 || v === 4)) {
-        const who = red(v) ? 0 : 1;
-        if (who !== (view.turn === view.seat ? view.turn : 1)) continue;
-        const ms = movesFrom(view.board, view.size, i, who);
-        if (ms.length) return { type: 'move', from: i, to: ms[0].to };
-      }
+      const ms = legal(i);
+      if (ms.length) return { type: 'move', from: i, to: ms[0].to };
     }
     return { type: 'move', from: 0, to: 0 };
   },
