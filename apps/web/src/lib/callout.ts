@@ -63,6 +63,16 @@ const CLIP_RULES: [RegExp, string][] = [
   [/赢了|拿下/, 'win'],
   [/输了/, 'lose'],
   [/开始/, 'ready'],
+  [/走子/, 'zouzi'],
+  [/吃子/, 'chizi'],
+  [/出牌/, 'chupai'],
+  [/弃牌/, 'qipai2'],
+  [/跟注/, 'genzhu'],
+  [/下注/, 'xiabu'],
+  [/将军/, 'jiangjun'],
+  [/加注/, 'jiazhu'],
+  [/全下/, 'quanxia'],
+  [/过牌|过/, 'guo'],
 ];
 
 function clipKey(text: string): string {
