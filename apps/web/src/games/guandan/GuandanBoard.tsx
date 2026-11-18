@@ -7,6 +7,7 @@ import { PlayingCard } from '../../components/PlayingCard';
 import { Avatar, Seat } from '../../components/Seat';
 import { Button, Sheet, toast } from '../../components/ui';
 import type { GameController } from '../../lib/controller';
+import { callout } from '../../lib/callout';
 import { playSound } from '../../lib/sound';
 import { CountChip, MoveZone, useHintCycle, useSelection, useTurnCue } from '../shared/trick';
 import './guandan.css';
@@ -71,7 +72,14 @@ export default function GuandanBoard({ ctl }: { ctl: Ctl }) {
 
   const lastKey = v.lastPlay ? v.lastPlay.cards.map((c) => c.id).join(',') : '';
   useEffect(() => {
-    if (v.lastPlay && gd.isBombPattern(v.lastPlay.pattern)) playSound('bomb');
+    if (v.lastPlay) {
+      if (gd.isBombPattern(v.lastPlay.pattern)) {
+        playSound('bomb');
+        callout(v.lastPlay.pattern.kind === 'jokerbomb' ? '王炸' : '炸弹');
+      } else {
+        callout('出牌');
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastKey]);
   const resultRound = useRef(0);

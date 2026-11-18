@@ -7,6 +7,7 @@ import { Button, Sheet, toast } from '../../components/ui';
 import type { GameController } from '../../lib/controller';
 import { useFigureLookup } from '../../lib/characters';
 import { formatChips, signed } from '../../lib/format';
+import { callout } from '../../lib/callout';
 import { playSound } from '../../lib/sound';
 import { useCompact, useTurnCue } from '../shared/trick';
 import './texas.css';

@@ -2,6 +2,7 @@ import type { xq } from '@park/engine';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '../../components/ui';
 import type { GameController } from '../../lib/controller';
+import { callout } from '../../lib/callout';
 import { playSound } from '../../lib/sound';
 import { CoachPanel, useCoach } from '../shared/coach';
 import { DuelActions, DuelLayout, DuelResult, MoveList, PlayerCard } from '../shared/duel';
@@ -73,6 +74,7 @@ export default function XiangqiBoard({ ctl }: { ctl: Ctl }) {
     if (v.moves.length > seen.current) {
       const last = v.moves.at(-1)!;
       playSound(last.check ? 'bomb' : last.captured ? 'chip' : 'play');
+      callout(last.check ? '将军' : last.captured ? '吃子' : '走子');
     }
     seen.current = v.moves.length;
   }, [v.moves]);
