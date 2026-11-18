@@ -11,6 +11,8 @@ import { SudokuArt } from './sudoku/SudokuArt';
 import { BlocksArt } from './blocks/BlocksArt';
 import { SnakeArt } from './snake/SnakeArt';
 import { LiarArt } from './liar/LiarArt';
+import { CheckersArt } from './checkers/CheckersArt';
+import { LudoArt } from './ludo/LudoArt';
 import { BattleArt } from './battle/BattleArt';
 import { MinesArt } from './mines/MinesArt';
 import { HexArt } from './hexisle/art';
@@ -67,6 +69,24 @@ export const GAME_UIS: GameUI[] = [
     people: '2 人',
     badge: '新',
     Art: GomokuArt,
+  },
+  {
+    id: 'checkers',
+    Board: lazy(() => import('./checkers/CheckersBoard')),
+    tint: ['#5c6b52', '#3a4236'],
+    showcase: [c(1, 'S', 5), c(2, 'H', 5), c(1, 'C', 5)],
+    people: '2 人',
+    badge: '新',
+    Art: CheckersArt,
+  },
+  {
+    id: 'ludo',
+    Board: lazy(() => import('./ludo/LudoBoard')),
+    tint: ['#4a4666', '#2d2a3a'],
+    showcase: [c(1, 'D', 4), c(2, 'D', 6), c(1, 'S', 3)],
+    people: '2-4 人',
+    badge: '新',
+    Art: LudoArt,
   },
   {
     id: 'battle',
