@@ -14,21 +14,21 @@ const isRed = (c: number) => Math.floor(c / 13) === 1 || Math.floor(c / 13) === 
 
 export default function KlondikeBoard({ ctl }: { ctl: Ctl }) {
   const v = ctl.view!;
-  const [pick, setPick] = useState<null | { from: 'tableau' | 'waste'; pile: number }>(null);
+  const [pick, setPick] = useState<null | { from: 'tableau' | 'waste'; pile: number; index: number }>(null);
 
   const tapTableau = (col: number) => {
     const pile = v.tableau[col];
     if (pick) {
-      ctl.act({ type: 'move', from: pick.from, pile: pick.pile, to: 'tableau', target: col });
+      ctl.act({ type: 'move', from: pick.from, pile: pick.pile, index: pick.index, to: 'tableau', target: col });
       setPick(null);
       return;
     }
-    if (pile.length) setPick({ from: 'tableau', pile: col });
+    if (pile.length) setPick({ from: 'tableau', pile: col, index: pile.length - 1 });
   };
 
   const tapFoundation = (f: number) => {
     if (!pick) return;
-    ctl.act({ type: 'move', from: pick.from, pile: pick.pile, to: 'foundation', target: f });
+    ctl.act({ type: 'move', from: pick.from, pile: pick.pile, index: pick.index, to: 'foundation', target: f });
     setPick(null);
     if (v.win) callout('通关了');
   };
@@ -46,7 +46,7 @@ export default function KlondikeBoard({ ctl }: { ctl: Ctl }) {
         <button
           className={`kl__waste${pick?.from === 'waste' ? ' is-pick' : ''}`}
           onClick={() => {
-            if (v.waste.length) setPick({ from: 'waste', pile: 0 });
+            if (v.waste.length) setPick({ from: 'waste', pile: 0, index: 0 });
           }}
         >
           {v.waste.length ? label(v.waste[v.waste.length - 1]) : ''}
@@ -63,8 +63,14 @@ export default function KlondikeBoard({ ctl }: { ctl: Ctl }) {
             {pile.length === 0 && <i className="kl__slot" />}
             {pile.map((c, i) => (
               <span
-                key={c}
-                className={`kl__card${isRed(c) ? ' red' : ''}${i === pile.length - 1 ? ' top' : ''}`}
+                key={`${c}-${i}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPick(pick?.pile === col && pick.from === 'tableau' ? null : { from: 'tableau', pile: col, index: i });
+                }}
+                className={`kl__card${isRed(c) ? ' red' : ''}${i === pile.length - 1 ? ' top' : ''}${
+                  pick?.from === 'tableau' && pick.pile === col && i >= pick.index ? ' is-pick' : ''
+                }`}
                 style={{ top: `${i * 22}%` }}
               >
                 {label(c)}

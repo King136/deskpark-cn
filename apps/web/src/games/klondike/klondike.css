@@ -11,6 +11,7 @@
 .kl__card { position: absolute; left: 0; right: 0; height: 52px; border-radius: 7px; background: #f3efe4; color: #23282c; font-size: 13px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.35); }
 .kl__card.red { color: #b0392c; }
 .kl__card.top { outline: 1px solid rgba(255,255,255,0.5); }
+.kl__card.is-pick { box-shadow: 0 0 0 2px #ffd479; }
 .kl__result { margin: 0; font-size: 12.5px; color: var(--ink-2); }
 .kl-art { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 100%; height: 100%; padding: 8px; background: #2b4a3a; }
 .kl-art i { border-radius: 5px; background: #f3efe4; }

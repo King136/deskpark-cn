@@ -8,7 +8,15 @@ export interface KlOptions {
 }
 export type KlAction =
   | { type: 'draw' }
-  | { type: 'move'; from: 'tableau' | 'waste'; pile: number; to: 'tableau' | 'foundation'; target: number }
+  | {
+      type: 'move';
+      from: 'tableau' | 'waste';
+      pile: number;
+      /** 从第几张开始搬（0 为列底，缺省为列顶单张） */
+      index?: number;
+      to: 'tableau' | 'foundation';
+      target: number;
+    }
   | { type: 'ready' };
 export interface KlState {
   options: KlOptions;
@@ -98,6 +106,21 @@ export const klondike: GameDefinition<KlState, KlAction, KlView, KlOptions> = {
   validate(s, _seat, a) {
     if (s.over) return a.type === 'ready' ? null : '本局已结束';
     if (a.type !== 'move') return null;
+    if (a.from === 'tableau') {
+      const pile = s.tableau[a.pile] ?? [];
+      const idx = a.index ?? pile.length - 1;
+      if (idx < 0 || idx >= pile.length) return '这张牌不能移动';
+      for (let i = idx; i < pile.length - 1; i++)
+        if (!canStack(pile[i + 1], pile[i])) return '只能整段搬红黑相间、点数递减的一段';
+      if (a.to === 'foundation') {
+        if (idx !== pile.length - 1) return '收牌叠只能一张一张收';
+      } else {
+        const col = s.tableau[a.target];
+        if (!col) return '目标列不存在';
+        if (!canStack(pile[idx], col[col.length - 1])) return '只能压在红黑相间、点数大一的牌上，空列只接 K';
+        return null;
+      }
+    }
     const card =
       a.from === 'waste' ? s.waste[s.waste.length - 1] : s.tableau[a.pile]?.[s.tableau[a.pile].length - 1];
     if (card === undefined) return '这张牌不能移动';
@@ -128,8 +151,11 @@ export const klondike: GameDefinition<KlState, KlAction, KlView, KlOptions> = {
       s.moves++;
       return s;
     }
-    const card =
-      a.from === 'waste' ? s.waste[s.waste.length - 1] : s.tableau[a.pile]?.[s.tableau[a.pile].length - 1];
+    const segment =
+      a.from === 'tableau'
+        ? s.tableau[a.pile].splice(a.index ?? s.tableau[a.pile].length - 1)
+        : [s.waste[s.waste.length - 1]];
+    const card = segment[0];
     if (card === undefined) return s;
     if (a.to === 'foundation') {
       const f = s.foundations[a.target];
@@ -140,10 +166,9 @@ export const klondike: GameDefinition<KlState, KlAction, KlView, KlOptions> = {
       const col = s.tableau[a.target];
       if (!col || a.target === (a.from === 'tableau' ? a.pile : -1)) return s;
       if (!canStack(card, col[col.length - 1])) return s;
-      col.push(card);
+      col.push(...segment);
     }
     if (a.from === 'waste') s.waste.pop();
-    else s.tableau[a.pile].pop();
     s.moves++;
     return check(s);
   },
