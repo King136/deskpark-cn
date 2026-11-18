@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/**
- * 开屏：水墨群山孤亭 + 毛笔题字。
- * 停留 2 秒后淡出，全程约 2.6 秒。
- */
+/** 开屏：整屏水墨，2 秒后淡出。文字已在画里（右下孤亭上方的「闲亭一局棋」），不再叠加任何字。 */
 export function Splash() {
   const [gone, setGone] = useState(false);
   const [hide, setHide] = useState(false);
@@ -21,7 +18,6 @@ export function Splash() {
   return (
     <div className={`splash${hide ? ' is-hide' : ''}`} aria-hidden>
       <img className="splash__art" src="/splash.jpg" alt="" />
-      <div className="splash__name">闲亭</div>
     </div>
   );
 }
