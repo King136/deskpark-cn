@@ -24,6 +24,7 @@ import { liar } from './games/liar';
 import { battle } from './games/battle';
 import { checkers } from './games/checkers';
 import { ludo } from './games/ludo';
+import { klondike } from './games/klondike';
 import { onecard } from './games/onecard';
 import { sichuan } from './games/sichuan';
 import { spellstones } from './games/spellstones';
@@ -53,6 +54,7 @@ export * as bt from './games/battle';
 export * as ck from './games/checkers';
 export { movesFrom } from './games/checkers';
 export * as ld from './games/ludo';
+export * as kl from './games/klondike';
 export * as mj from './mahjong';
 
 export {
@@ -78,6 +80,7 @@ export {
   battle,
   checkers,
   ludo,
+  klondike,
 };
 
 // 内置玩法（顺序即大厅展示顺序）
@@ -104,5 +107,6 @@ for (const g of [
   battle,
   checkers,
   ludo,
+  klondike,
 ])
   registerGame(g);

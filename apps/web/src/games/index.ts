@@ -13,6 +13,7 @@ import { SnakeArt } from './snake/SnakeArt';
 import { LiarArt } from './liar/LiarArt';
 import { CheckersArt } from './checkers/CheckersArt';
 import { LudoArt } from './ludo/LudoArt';
+import { KlondikeArt } from './klondike/KlondikeArt';
 import { BattleArt } from './battle/BattleArt';
 import { MinesArt } from './mines/MinesArt';
 import { HexArt } from './hexisle/art';
@@ -69,6 +70,15 @@ export const GAME_UIS: GameUI[] = [
     people: '2 人',
     badge: '新',
     Art: GomokuArt,
+  },
+  {
+    id: 'klondike',
+    Board: lazy(() => import('./klondike/KlondikeBoard')),
+    tint: ['#3f6b52', '#2b4a3a'],
+    showcase: [c(1, 'H', 1), c(2, 'S', 13), c(1, 'D', 7)],
+    people: '单人',
+    badge: '新',
+    Art: KlondikeArt,
   },
   {
     id: 'checkers',
