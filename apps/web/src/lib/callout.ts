@@ -177,7 +177,10 @@ export function primeVoice(): void {
   if (typeof document === 'undefined') return;
   const warm = () => {
     voiceContext();
-    for (const k of ['dan', 'dui', 'shun', 'bujiao', 'baodan', 'qiang', 'jiaodizhu', 'zhadan']) {
+    const ALL = ['turn','dan','dui','shun','bujiao','baodan','qiang','jiaodizhu','zhadan','wangzha',
+      'place','zouzi','chizi','chupai','qipai2','genzhu','xiabu','jiangjun','jiazhu','quanxia','guo',
+      'peng','gang','hu','tingpai','zimo','dianpao','win','lose','ready','five'];
+    for (const k of ALL) {
       void loadVoice(k);
       htmlClip(k);
     }
@@ -277,13 +280,10 @@ export function callout(text: string, opts?: { force?: boolean }): void {
   const key = clipKey(text);
   // 只选一条通道：有原生插件就走原生，否则走网页音频。
   // 之前两条并行播放，是"每句都念两遍"的直接原因。
-  const native = !!(globalThis as CapPlugins).Capacitor?.Plugins?.ParkHost?.speak;
-  if (native) {
-    if (pluginSpeak(text, key)) return;
-  } else {
-    if (playClip(key)) return;
-    if (nativeSpeak(text)) return;
-  }
+  // 只走网页音频：原生 SoundPool 在部分机型会"返回成功但不出声"，
+  // 之前所有"没人声"的反馈都出在这条通道上。
+  if (key && playClip(key)) return;
+  if (nativeSpeak(text)) return;
   try {
     const s = globalThis.speechSynthesis;
     if (!s) {
