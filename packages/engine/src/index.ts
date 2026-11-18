@@ -18,6 +18,8 @@ import { reversi } from './games/reversi';
 import { g2048 } from './games/g2048';
 import { mines } from './games/mines';
 import { sudoku } from './games/sudoku';
+import { blocks } from './games/blocks';
+import { snake } from './games/snake';
 import { onecard } from './games/onecard';
 import { sichuan } from './games/sichuan';
 import { spellstones } from './games/spellstones';
@@ -40,6 +42,8 @@ export * as rv from './games/reversi';
 export * as g2 from './games/g2048';
 export * as ms from './games/mines';
 export * as sd from './games/sudoku';
+export * as bk from './games/blocks';
+export * as sn from './games/snake';
 export * as mj from './mahjong';
 
 export {
@@ -59,6 +63,8 @@ export {
   g2048,
   mines,
   sudoku,
+  blocks,
+  snake,
 };
 
 // 内置玩法（顺序即大厅展示顺序）
@@ -79,5 +85,7 @@ for (const g of [
   g2048,
   mines,
   sudoku,
+  blocks,
+  snake,
 ])
   registerGame(g);
