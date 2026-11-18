@@ -4,7 +4,7 @@ import {
   BookOpen,
   Bot,
   ChevronLeft,
-  Hash,
+  MoreHorizontal,
   RotateCw,
   Palette,
   Trophy,
@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MatchScoreCard, MyScoreCard, RoomScoreTable } from '../components/ScoreBoard';
 import { TableHud } from '../components/TableHud';
 import { callout } from '../lib/callout';
+import { syncBarColor } from '../lib/barcolor';
 import { Button, Sheet, toast } from '../components/ui';
 import { replyChat } from '../lib/ai/agent';
 import { aiEvents, aiSpeech } from '../lib/ai/events';
@@ -72,6 +73,7 @@ export function TableShell({
   const [rules, setRules] = useState(false);
   const [look, setLook] = useState(false);
   const [stats, setStats] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   /** 已经关掉结算卡的局号 */
   const [dismissedScore, setDismissedScore] = useState(0);
@@ -103,6 +105,11 @@ export function TableShell({
   const landscape = turns % 2 === 1 ? vp.h > vp.w : vp.w > vp.h;
 
   useEffect(() => attachHostBridge(), []);
+  // 牌桌顶栏是绒布渐变：进入/切换桌布/旋转后都把同一种颜色刷到状态栏
+  useEffect(() => {
+    const hs = [0, 160, 560].map((d) => window.setTimeout(() => syncBarColor(), d));
+    return () => hs.forEach((h) => window.clearTimeout(h));
+  }, [s.felt, turns]);
   useEffect(() => onHostChrome(setChrome), []);
   useEffect(() => {
     installHostApi({
@@ -117,7 +124,10 @@ export function TableShell({
   /* ---------------- 交互区：三态 + 拖动 ---------------- */
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [body, setBody] = useState({ w: 0, h: 0 });
-  const [dock, setDock] = useState<DockState>('open');
+  // 竖屏默认只露信息头：棋盘/牌桌先占满屏，聊天点「展开」再来，避免交互区长期吃掉 1/3 画面
+  const [dock, setDock] = useState<DockState>(() =>
+    typeof window !== 'undefined' && window.innerWidth >= 900 ? 'open' : 'peek',
+  );
   const [dragPx, setDragPx] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -131,10 +141,11 @@ export function TableShell({
     return () => ro.disconnect();
   }, []);
 
-  /** 交互区展开后的尺寸：竖屏按内容需要给 220~300px（约为内容区 1/3 上下），横屏按 1/3 宽 */
+  /** 交互区展开后的尺寸：竖屏上限 268px（约屏高 1/3），横屏按 1/3 宽；
+      默认只露出 56px 信息头，牌桌因此能多拿回 200px 左右的可视高度 */
   const fullPx = landscape
-    ? body.w / 3
-    : Math.min(300, Math.max(220, body.h * 0.34));
+    ? Math.min(360, body.w / 3)
+    : Math.min(268, Math.max(196, body.h * 0.3));
   const peekPx = landscape ? 96 : PEEK;
   /** 宿主把交互区收走后，牌桌独占整块 */
   const dockPx = !chrome.dock
@@ -210,7 +221,8 @@ export function TableShell({
     : Array.isArray(turnView.counts)
       ? (turnView.counts as number[])[turnSeat ?? 0]
       : null;
-  const showTurnRibbon = (!chrome.dock || dock !== 'open') && !ctl.over && turnName != null;
+  // 信息头已经写着轮到谁；只有交互区完全收起时才用悬浮提示条补位
+  const showTurnRibbon = (!chrome.dock || dock === 'hidden') && !ctl.over && turnName != null;
 
   /** 收起态顶部给"轮到谁"留一条 28px 窄带（舞台整体下移，永不压到牌桌内容） */
   const TOP_PAD = showTurnRibbon ? 28 : 0;
@@ -393,52 +405,34 @@ export function TableShell({
       {chrome.tools && (
       <header className="table__top">
         <div className="table__tools">
-          <button className="tool" onClick={onBack}>
-            <ChevronLeft size={17} />
-            <span>大厅</span>
+          <button className="tool tool--back" onClick={onBack} aria-label="回大厅">
+            <ChevronLeft size={19} />
           </button>
           <span className="tool tool--static" title={title}>
-            <Hash size={15} />
-            <span>{online_ && net.room ? net.room.code : title}</span>
+            <span className="tool__name">{title}</span>
+            {online_ && net.room && <em className="tool__code">{net.room.code}</em>}
           </span>
-          {online_ && (
-            <button className="tool" onClick={invite}>
-              <UserPlus size={16} />
-              <span>邀请</span>
-            </button>
-          )}
-          <button className="tool" onClick={() => setRules(true)}>
-            <BookOpen size={16} />
-            <span>规则</span>
-          </button>
-          <button className="tool" onClick={() => setStats(true)}>
-            <Trophy size={16} />
-            <span>战绩</span>
-          </button>
+          <span className="table__tools-gap" />
           {ctl.seat !== null && !ctl.over && (
             <button
-              className={`tool ${ctl.auto ? 'is-on' : ''}`}
+              className={`tool tool--auto ${ctl.auto ? 'is-on' : ''}`}
               onClick={() => ctl.setAuto(!ctl.auto)}
+              aria-label={ctl.auto ? '取消托管' : '托管'}
+              title={ctl.auto ? '取消托管' : '托管'}
             >
-              <Bot size={16} />
-              <span>{ctl.auto ? '托管中' : '托管'}</span>
+              <Bot size={18} />
             </button>
           )}
-          <button className="tool" onClick={() => setLook(true)}>
-            <Palette size={16} />
-            <span>牌面</span>
-          </button>
-          <button className="tool" onClick={() => settings.set({ sound: !s.sound })}>
-            {s.sound ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            <span>{s.sound ? '播报' : '静音'}</span>
-          </button>
           <button
-            className={`tool ${turns % 2 === 1 ? 'is-on' : ''}`}
-            onClick={() => setTurns((t) => (t + 1) % 4)}
-            title={`顺时针旋转 90°（当前 ${turns * 90}°）`}
+            className={`tool tool--sound ${s.sound ? '' : 'is-off'}`}
+            onClick={() => settings.set({ sound: !s.sound })}
+            aria-label={s.sound ? '静音' : '打开音效'}
+            title={s.sound ? '静音' : '打开音效'}
           >
-            <RotateCw size={16} />
-            <span>旋转</span>
+            {s.sound ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+          <button className="tool" onClick={() => setMenu(true)} aria-label="更多操作" title="更多">
+            <MoreHorizontal size={19} />
           </button>
         </div>
       </header>
@@ -493,6 +487,7 @@ export function TableShell({
           }}
           onToggle={toggleDock}
           onGrab={onGrab}
+          onStats={() => setStats(true)}
         />
         )}
       </div>
@@ -550,6 +545,85 @@ export function TableShell({
           />
         </div>
       )}
+
+      <Sheet open={menu} onClose={() => setMenu(false)} title="牌桌菜单">
+        <div className="table-menu">
+          <button
+            onClick={() => {
+              setMenu(false);
+              setRules(true);
+            }}
+          >
+            <BookOpen size={18} />
+            <span>规则</span>
+            <small>这一桌怎么算赢</small>
+          </button>
+          <button
+            onClick={() => {
+              setMenu(false);
+              setStats(true);
+            }}
+          >
+            <Trophy size={18} />
+            <span>战绩</span>
+            <small>本房娱乐分与胜负记录</small>
+          </button>
+          <button
+            onClick={() => {
+              setMenu(false);
+              setLook(true);
+            }}
+          >
+            <Palette size={18} />
+            <span>牌面与桌布</span>
+            <small>牌背、绒布颜色</small>
+          </button>
+          <button
+            onClick={() => {
+              settings.set({ sound: !s.sound });
+              setMenu(false);
+            }}
+          >
+            {s.sound ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            <span>{s.sound ? '关闭音效' : '打开音效'}</span>
+            <small>报牌语音与操作音</small>
+          </button>
+          <button
+            onClick={() => {
+              setTurns((t) => (t + 1) % 4);
+              setMenu(false);
+            }}
+          >
+            <RotateCw size={18} />
+            <span>旋转 {turns % 2 === 1 ? '回竖屏' : '横屏'}</span>
+            <small>当前 {turns * 90}°，锁竖屏时也能横着打</small>
+          </button>
+          {online_ && net.room && (
+            <button
+              onClick={() => {
+                setMenu(false);
+                void invite();
+              }}
+            >
+              <UserPlus size={18} />
+              <span>邀请牌友</span>
+              <small>复制房号 {net.room.code}</small>
+            </button>
+          )}
+          {ctl.seat !== null && !ctl.over && (
+            <button
+              onClick={() => {
+                ctl.setAuto(!ctl.auto);
+                setMenu(false);
+              }}
+            >
+              <Bot size={18} />
+              <span>{ctl.auto ? '取消托管' : '托管本局'}</span>
+              <small>让电脑暂时代打</small>
+            </button>
+          )}
+        </div>
+      </Sheet>
 
       <Sheet open={rules} onClose={() => setRules(false)} title={`${ctl.def.meta.name} · 规则`} wide>
         <ol className="rules-list">

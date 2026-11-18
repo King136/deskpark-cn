@@ -1,7 +1,7 @@
 .me {
   min-height: 100%;
   padding: calc(12px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
-    calc(92px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    calc(28px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   background: var(--paper);
   color: var(--ink);
   display: flex;
@@ -155,7 +155,7 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  min-height: 54px;
+  min-height: 56px;
   padding: 10px 14px 10px 12px;
   background: var(--surface);
   text-align: left;
@@ -199,15 +199,50 @@
   font-weight: 600;
 }
 .me__row-text small {
-  font-size: 11px;
+  font-size: 11.5px;
   line-height: 1.45;
   color: var(--ink-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 带分段控件的行：控件换到下一行，避免挤爆右侧 */
+.me__row:has(.segmented) {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-areas:
+    'icon text'
+    'tail tail';
+  row-gap: 10px;
+  align-items: start;
+}
+.me__row:has(.segmented) .me__icon {
+  grid-area: icon;
+}
+.me__row:has(.segmented) .me__row-text {
+  grid-area: text;
+}
+.me__row:has(.segmented) .me__row-tail {
+  grid-area: tail;
+  width: auto;
+  margin-left: 42px;
+  justify-content: flex-start;
+}
+.me__row:has(.segmented) .segmented {
+  width: 100%;
+}
+.me__row:has(.segmented) .segmented button {
+  flex: 1;
+  padding: 0 8px;
 }
 .me__row-tail {
   flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: 58%;
+  min-width: 0;
 }
 .me__row-action {
   font-size: 12.5px;
@@ -253,17 +288,13 @@
 }
 
 .me__exit {
-  position: sticky;
-  bottom: calc(10px + env(safe-area-inset-bottom));
-  z-index: 6;
   width: 100%;
   height: 44px;
-  margin-top: 2px;
+  margin-top: 6px;
   border-radius: 99px;
   box-shadow:
     inset 0 0 0 1px var(--line-2),
     0 10px 22px rgba(20, 26, 22, 0.12);
-  backdrop-filter: blur(10px);
 }
 
 /* 联机区块收进分组视觉 */
@@ -273,3 +304,63 @@
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--line);
 }
+
+
+/* ---------- 我的形象 ---------- */
+.me__look {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  text-align: left;
+  color: var(--ink);
+}
+.me__look:active {
+  background: var(--surface-2);
+}
+.me__look-pic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+.me__look-pic.is-figure {
+  width: 76px;
+  height: 76px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+}
+.me__look-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.me__look-text b {
+  font-size: 15px;
+  font-weight: 650;
+}
+.me__look-text small {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.me__chev.is-open {
+  rotate: 90deg;
+}
+.me__studio {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+

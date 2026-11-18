@@ -87,7 +87,11 @@ export default function MinesBoard({ ctl }: { ctl: Ctl }) {
       <div className="ms__stage">
         <div
           className="ms__board"
-          style={{ gridTemplateColumns: `repeat(${v.cols}, 1fr)`, aspectRatio: `${v.cols} / ${v.rows}` }}
+          style={{
+            gridTemplateColumns: `repeat(${v.cols}, 1fr)`,
+            gridTemplateRows: `repeat(${v.rows}, minmax(0, 1fr))`,
+            aspectRatio: `${v.cols} / ${v.rows}`,
+          }}
         >
           {cells}
         </div>

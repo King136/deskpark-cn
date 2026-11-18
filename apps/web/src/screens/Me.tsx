@@ -19,9 +19,11 @@ import { clearSavedLocal } from '../lib/controller';
 import { currentHost, hostAvailable, subscribeHost, type HostState } from '../lib/localHost';
 import { navigate } from '../lib/router';
 import { listRoms } from '../lib/roms';
+import { figureHeight, useFigure } from '../lib/characters';
+import { CharacterSprite } from '../components/pixel/CharacterSprite';
 import { profile, settings } from '../lib/store';
 import { VERSION_TEXT } from '../lib/version';
-import { FELTS, AvatarPicker, ServerSection } from './SettingsSheet';
+import { FELTS, AvatarStudio, ServerSection } from './SettingsSheet';
 import './me.css';
 
 /** 一行设置：图标 + 标题 + 说明 + 右侧控件，和系统设置同一套语言 */
@@ -66,6 +68,8 @@ export function Me() {
   const [draft, setDraft] = useState(p.name);
   const [roms, setRoms] = useState(0);
   const [host, setHost] = useState<HostState>(() => currentHost());
+  const figure = useFigure(p.avatar, p.name);
+  const showFigure = s.figures && !!figure;
 
   useEffect(() => {
     void listRoms().then((rows) => setRoms(rows.length));
@@ -128,12 +132,29 @@ export function Me() {
         </div>
       </div>
 
-      {showAvatars && (
-        <section className="me__group me__avatars">
-          <h2>更换形象</h2>
-          <AvatarPicker />
-        </section>
-      )}
+      <section className="me__group">
+        <h2>我的形象</h2>
+        <button className="me__look" onClick={() => setShowAvatars((v) => !v)}>
+          <span className={`me__look-pic${showFigure ? ' is-figure' : ''}`}>
+            {showFigure && figure ? (
+              <CharacterSprite character={figure} height={figureHeight(figure, 84)} seed={figure.id} />
+            ) : (
+              <PixelAvatar avatar={p.avatar} name={p.name} size={54} />
+            )}
+          </span>
+          <span className="me__look-text">
+            <b>{showFigure ? (figure?.name ?? '全身形象') : '像素头像'}</b>
+            <small>{showFigure ? '牌桌上会以全身立绘走动' : '点这里换成全身立绘或别的头像'}</small>
+          </span>
+          <span className="me__row-action">{showAvatars ? '收起' : '更换'}</span>
+          <ChevronRight size={16} className={`me__chev${showAvatars ? ' is-open' : ''}`} />
+        </button>
+        {showAvatars && (
+          <div className="me__studio">
+            <AvatarStudio preview={148} />
+          </div>
+        )}
+      </section>
 
       <section className="me__group">
         <h2>外观与主题</h2>

@@ -29,60 +29,85 @@
   position: relative;
   z-index: 60;
   flex: none;
-  height: calc(52px + env(safe-area-inset-top));
-  padding: env(safe-area-inset-top) max(6px, env(safe-area-inset-left)) 0
-    max(6px, env(safe-area-inset-right));
+  height: calc(50px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-left)) 0
+    max(8px, env(safe-area-inset-right));
   display: flex;
   align-items: center;
+  background: linear-gradient(180deg, rgba(7, 26, 21, 0.34), rgba(7, 26, 21, 0));
 }
 .table__tools {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 4px 2px;
+  min-width: 0;
+  padding: 2px 0;
 }
-.table__tools::-webkit-scrollbar {
-  display: none;
+.table__tools-gap {
+  flex: 1;
 }
 .tool {
   flex: none;
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-width: 44px;
-  height: 42px;
-  padding: 0 7px;
+  gap: 6px;
+  min-width: 40px;
+  height: 38px;
+  padding: 0 10px;
   border-radius: 12px;
-  font-size: 10.5px;
+  font-size: 13px;
   line-height: 1;
   color: var(--felt-ink-2);
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  white-space: nowrap;
+  background: transparent;
   transition: background 0.15s, color 0.15s;
 }
 .tool:active {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--felt-ink);
 }
 .tool.is-on {
-  background: rgba(231, 200, 134, 0.2);
   color: var(--felt-accent);
+  background: rgba(231, 200, 134, 0.16);
+}
+.tool.is-off {
+  color: var(--felt-ink-3);
+}
+.tool--back {
+  margin-left: -6px;
+  padding: 0 4px;
+  color: var(--felt-ink);
 }
 .tool--static {
-  background: rgba(0, 0, 0, 0.22);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  padding: 0 4px;
   color: var(--felt-ink);
+  background: transparent;
   cursor: default;
 }
-.tool--static span {
-  max-width: 82px;
+.tool--static .tool__name {
+  max-width: 52vw;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.tool__code {
+  flex: none;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--felt-accent);
+  background: rgba(231, 200, 134, 0.14);
 }
 
 /* ---------- 内容区：牌桌 + 交互区 ---------- */
@@ -119,6 +144,9 @@
   position: absolute;
   top: 0;
   left: 0;
+  /* 棋盘尺寸统一用 cqw/cqh 计算：舞台先排版后整体缩放，vh 与缩放后的实际像素并不相等，
+     这正是各棋类「棋盘忽大忽小、被裁切」的根因 */
+  container-type: size;
   transition: transform 0.36s var(--dock-spring, cubic-bezier(0.2, 1.06, 0.28, 1));
   will-change: transform;
 }
@@ -779,4 +807,44 @@ html.park-table #root {
   0%, 20% { opacity: 0; }
   40%, 80% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* ---------- 牌桌菜单（顶栏「更多」） ---------- */
+.table-menu {
+  display: grid;
+  gap: 4px;
+  margin: 0 -4px;
+}
+.table-menu button {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  grid-template-areas:
+    'ico title'
+    'ico note';
+  align-items: center;
+  column-gap: 10px;
+  padding: 11px 10px;
+  border: 0;
+  border-radius: 12px;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+}
+.table-menu button:active {
+  background: var(--surface-2);
+}
+.table-menu svg {
+  grid-area: ico;
+  justify-self: center;
+  color: var(--accent);
+}
+.table-menu span {
+  grid-area: title;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.table-menu small {
+  grid-area: note;
+  font-size: 11.5px;
+  color: var(--ink-3);
 }

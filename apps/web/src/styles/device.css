@@ -27,14 +27,138 @@ html[data-device='phone'],
 html[data-device='foldable'][data-orientation='portrait'] {
   --hit-min: 44px;
 }
-html[data-device='phone'] button,
-html[data-device='foldable'][data-orientation='portrait'] button {
+/* 只给「行级」可点元素抬到触控下限。不能一刀切 button：
+   开关、分段控件、牌面、棋盘格都有自己的固定高度，被 44px 撑高就会变形。 */
+html[data-device='phone'] .btn,
+html[data-device='phone'] .rail__item,
+html[data-device='phone'] .me__row,
+html[data-device='phone'] .gtile__actions .btn,
+html[data-device='phone'] .iconbtn,
+html[data-device='phone'] .tab,
+html[data-device='foldable'][data-orientation='portrait'] .btn,
+html[data-device='foldable'][data-orientation='portrait'] .rail__item,
+html[data-device='foldable'][data-orientation='portrait'] .me__row {
   min-height: var(--hit-min);
 }
 /* 手机短屏（横屏游戏）：进一步压缩非游戏区 */
 html[data-device='phone'][data-orientation='landscape'] .home__top,
 html[data-device='foldable'][data-orientation='landscape'] .home__top {
   height: 38px;
+}
+
+/* ---------- 手机竖屏：大厅双列 ----------
+   390px 宽减去左右留白只剩 350px，单列 300px 卡片会让首屏只看到 1 张，
+   信息密度远低于原生应用。改成双列小卡：art 压到 96px、标题 16.5px。 */
+html[data-device='phone'][data-orientation='portrait'],
+html[data-device='foldable'][data-orientation='portrait'] {
+  --gtile-min: 148px;
+  --gtile-art-h: 96px;
+  --gtile-title: 16.5px;
+  --gtile-desc: 12px;
+  --gtile-gap: 11px;
+  --gtile-pad: 11px 12px 12px;
+}
+/* 大厅：四列太窄，改三列让 4 字标题放得下（360px 屏四列仅 55px） */
+html[data-device='phone'][data-orientation='portrait'] .wall__grid,
+html[data-device='foldable'][data-orientation='portrait'] .wall__grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+/* 顶栏：品牌副标题是 nowrap 的长句，加上「头像+名字+设置」会顶出 11px 横向滚动 */
+html[data-device='phone'][data-orientation='portrait'] .brand__mark,
+html[data-device='foldable'][data-orientation='portrait'] .brand__mark {
+  height: 36px;
+  width: 36px;
+}
+html[data-device='phone'][data-orientation='portrait'] .brand__text,
+html[data-device='foldable'][data-orientation='portrait'] .brand__text {
+  height: 36px;
+}
+html[data-device='phone'][data-orientation='portrait'] .brand__text strong,
+html[data-device='foldable'][data-orientation='portrait'] .brand__text strong {
+  font-size: 20px;
+}
+html[data-device='phone'][data-orientation='portrait'] .brand__text small,
+html[data-device='foldable'][data-orientation='portrait'] .brand__text small {
+  display: none;
+}
+/* 用户名移进「我的」页，顶栏只留头像，给设置按钮留出触控空间。
+   注意只能隐藏名字：PixelAvatar 本身也渲染成 <span class="avatar">。 */
+html[data-device='phone'][data-orientation='portrait'] .me-chip__name,
+html[data-device='foldable'][data-orientation='portrait'] .me-chip__name {
+  display: none;
+}
+html[data-device='phone'][data-orientation='portrait'] .me-chip,
+html[data-device='foldable'][data-orientation='portrait'] .me-chip {
+  padding: 0 5px;
+}
+html[data-device='phone'][data-orientation='portrait'] .main__top,
+html[data-device='foldable'][data-orientation='portrait'] .main__top {
+  min-width: 0;
+}
+html[data-device='phone'][data-orientation='portrait'] .brand,
+html[data-device='foldable'][data-orientation='portrait'] .brand {
+  min-width: 0;
+  gap: 8px;
+}
+/* 侧栏已占 62px，主栏左右内边距再收一点，把宽度还给卡片 */
+html[data-device='phone'][data-orientation='portrait'] .main,
+html[data-device='foldable'][data-orientation='portrait'] .main {
+  padding: 8px 12px 18px 10px;
+}
+html[data-device='phone'][data-orientation='portrait'] .gtile__tagline,
+html[data-device='foldable'][data-orientation='portrait'] .gtile__tagline {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+html[data-device='phone'][data-orientation='portrait'] .gtile__people,
+html[data-device='foldable'][data-orientation='portrait'] .gtile__people {
+  font-size: 11px;
+  gap: 2px;
+}
+html[data-device='phone'][data-orientation='portrait'] .gtile__people svg,
+html[data-device='foldable'][data-orientation='portrait'] .gtile__people svg {
+  width: 11px;
+  height: 11px;
+}
+html[data-device='phone'][data-orientation='portrait'] .gtile__actions,
+html[data-device='foldable'][data-orientation='portrait'] .gtile__actions {
+  margin-top: 10px;
+  gap: 6px;
+}
+/* 双列窄卡里按钮只留文字，图标会让 78px 宽放不下 */
+html[data-device='phone'][data-orientation='portrait'] .gtile__actions .btn,
+html[data-device='foldable'][data-orientation='portrait'] .gtile__actions .btn {
+  font-size: 12.5px;
+  padding: 0 6px;
+  gap: 0;
+}
+html[data-device='phone'][data-orientation='portrait'] .gtile__actions .btn svg,
+html[data-device='foldable'][data-orientation='portrait'] .gtile__actions .btn svg {
+  display: none;
+}
+html[data-device='phone'][data-orientation='portrait'] .gtile__badge,
+html[data-device='foldable'][data-orientation='portrait'] .gtile__badge {
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  padding: 1px 7px;
+}
+html[data-device='phone'][data-orientation='portrait'] .games-group.is-more,
+html[data-device='foldable'][data-orientation='portrait'] .games-group.is-more {
+  --gtile-art-h: 84px;
+}
+html[data-device='phone'][data-orientation='portrait'] .games-group h2,
+html[data-device='foldable'][data-orientation='portrait'] .games-group h2 {
+  margin-bottom: 10px;
+}
+html[data-device='phone'][data-orientation='portrait'] .games-group + .games-group,
+html[data-device='foldable'][data-orientation='portrait'] .games-group + .games-group {
+  margin-top: 26px;
 }
 
 /* ---------- 阔直板大屏手机（600–900px 竖屏）----------
@@ -124,4 +248,12 @@ html[data-orientation-changing='1'] * {
 /* ---------- 无障碍：尊重系统字号放大 ---------- */
 @media (prefers-reduced-motion: no-preference) {
   html[data-orientation-changing='1'] .table { opacity: 0.6; }
+}
+
+/* 棋盘格本身不套用 44px 触控下限：棋子格由棋盘尺寸决定，
+   否则 10×10 棋盘每行被撑到 44px，整块棋盘会变成竖长方形并被底部遮住。 */
+html[data-device='phone'] .board__stage button,
+html[data-device='foldable'][data-orientation='portrait'] .board__stage button,
+html[data-device='wide'][data-orientation='portrait'] .board__stage button {
+  min-height: 0;
 }

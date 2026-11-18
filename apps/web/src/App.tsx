@@ -108,7 +108,7 @@ export function App() {
   // 设备形态识别：写入 <html data-device/data-orientation>，驱动 device.css 五形态适配
   useDeviceForm();
   useEffect(() => {
-    const t = setTimeout(() => syncBarColor(), 60);
+    const t = setTimeout(() => syncBarColor(), 120);
     return () => clearTimeout(t);
   }, [route]);
   useOnlineErrors();

@@ -987,6 +987,7 @@
 }
 .segmented button {
   height: 32px;
+  min-height: 32px;
   padding: 0 14px;
   border-radius: 9px;
   font-size: 13.5px;
@@ -1011,6 +1012,8 @@
 .switch {
   width: 44px;
   height: 26px;
+  min-height: 26px;
+  min-width: 44px;
   border-radius: 99px;
   background: var(--line-2);
   position: relative;
@@ -1284,23 +1287,27 @@
   pointer-events: none;
 }
 
-/* ---------- 开屏 ---------- */
+/* ---------- 开屏 ----------
+   纸白打底 → 水墨推开 → 云雾遮住原图烧死的题字 → 二分之一大小的题字逐字落墨。
+   原生启动图使用同一张纸白底色，冷启动不会出现黑→白的跳变。 */
 .splash {
   position: fixed;
-  top: calc(-1 * env(safe-area-inset-top));
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 100dvh;
+  inset: 0;
   z-index: 900;
-  display: grid;
-  place-items: center;
-  background: #121614;
-  transition: opacity 0.6s ease;
+  height: 100dvh;
+  overflow: hidden;
+  background: #f4f1ea;
+  transition: opacity 0.45s ease;
+  will-change: opacity;
 }
-.splash.is-hide {
+.splash.is-out {
   opacity: 0;
   pointer-events: none;
+}
+.splash__paper {
+  position: absolute;
+  inset: 0;
+  background: #f4f1ea;
 }
 .splash__art {
   position: absolute;
@@ -1308,36 +1315,210 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center center;
+  object-position: 50% 42%;
+  opacity: 0;
+  transform: scale(1.045);
+  animation: splash-art 1.15s cubic-bezier(0.22, 0.9, 0.28, 1) 0.12s forwards;
+  user-select: none;
+  pointer-events: none;
 }
-.splash__verse {
+@media (min-width: 720px) {
+  .splash__art {
+    object-position: 50% 45%;
+  }
+}
+@keyframes splash-art {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* 云雾：只盖住原图中央那条巨大的书法，边缘用大圆角+模糊化开，像山间水汽 */
+.splash__veil {
+  /* 只留一层很淡的宣纸光晕垫在题字后面，保证小字可读；山水不再被遮住 */
   position: absolute;
-  right: 8vmin;
-  top: 50%;
-  transform: translateY(-50%);
+  left: 24%;
+  top: 22%;
+  width: 52%;
+  height: 46%;
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(246, 243, 235, 0.66) 0%,
+    rgba(246, 243, 235, 0.4) 55%,
+    rgba(246, 243, 235, 0) 100%
+  );
+  filter: blur(6px);
+  opacity: 0;
+  animation: splash-veil 0.7s ease-out 0.05s forwards;
+}
+@keyframes splash-veil {
+  to {
+    opacity: 1;
+  }
+}
+.splash__mark {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  translate: -50% -50%;
+  color: #1f3a30;
+  opacity: 0;
+  animation: splash-mark 1.15s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+@keyframes splash-mark {
+  0% {
+    opacity: 0;
+    scale: 0.9;
+    filter: blur(3px);
+  }
+  35% {
+    opacity: 0.9;
+    scale: 1;
+    filter: blur(0);
+  }
+  62% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.06;
+  }
+}
+.splash__title {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  translate: -50% -50%;
   writing-mode: vertical-rl;
-  font-family: var(--font-display), 'Songti SC', serif;
-  font-size: clamp(18px, 5.6vmin, 30px);
-  letter-spacing: 0.22em;
-  color: #ddd6c2;
-  opacity: 0.86;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
-  animation: splash-ink 1.1s ease-out both;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.1em;
+  margin: 0;
+  font-family: var(--font-display), 'Noto Serif CJK SC', 'Songti SC', 'STKaiti', serif;
+  font-size: clamp(26px, 7.4vw, 34px);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  color: #1b241f;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
-.splash__name {
+.splash__title span {
+  display: block;
+  opacity: 0;
+  translate: 0 10px;
+  filter: blur(4px);
+  animation: splash-char 0.62s cubic-bezier(0.2, 0.9, 0.28, 1) forwards;
+  animation-delay: calc(0.46s + var(--i) * 0.075s);
+}
+@keyframes splash-char {
+  60% {
+    filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    filter: blur(0);
+  }
+}
+.splash__seal {
   position: absolute;
-  left: 8vmin;
-  bottom: 10vmin;
-  font-family: var(--font-display), serif;
-  font-size: clamp(15px, 4vmin, 20px);
-  letter-spacing: 0.3em;
-  color: #b9b3a3;
-  opacity: 0.7;
-  animation: splash-ink 1.4s 0.2s ease-out both;
+  right: -2.4em;
+  bottom: -0.2em;
+  display: grid;
+  place-items: center;
+  width: 1.16em;
+  height: 1.16em;
+  border-radius: 3px;
+  background: #a8402f;
+  color: #f7efe0;
+  font-style: normal;
+  font-size: 0.52em;
+  letter-spacing: 0;
+  opacity: 0;
+  animation: splash-seal 0.5s ease-out 1.05s forwards;
+  box-shadow: 0 1px 2px rgba(80, 20, 10, 0.25);
 }
-@keyframes splash-ink {
+@keyframes splash-seal {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    scale: 1.4;
+  }
+  to {
+    opacity: 0.92;
+    scale: 1;
+  }
+}
+.splash__foot {
+  position: absolute;
+  left: 50%;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 20px 8px;
+  border-radius: 999px;
+  background: rgba(244, 241, 234, 0.74);
+  box-shadow: 0 6px 20px rgba(40, 50, 44, 0.08);
+  backdrop-filter: blur(8px);
+  font-size: 11.5px;
+  letter-spacing: 0.24em;
+  color: rgba(45, 55, 48, 0.7);
+  opacity: 0;
+  animation: splash-foot 0.8s ease-out 1.15s forwards;
+}
+.splash__line {
+  width: 46px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(50, 70, 60, 0.5), transparent);
+  position: relative;
+  overflow: hidden;
+}
+.splash__line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, #2a5a48, transparent);
+  animation: splash-scan 1.2s ease-in-out 1.3s infinite;
+}
+@keyframes splash-foot {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes splash-scan {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 100% 0;
+  }
+}
+
+/* 冷启动时页面本体先按住，开屏退场后再浮起，避免"啪"地硬切 */
+html[data-booting='1'] .home,
+html[data-booting='1'] .me,
+html[data-booting='1'] .library,
+html[data-booting='1'] .table {
+  opacity: 0;
+}
+.home,
+.me,
+.library,
+.table {
+  transition: opacity 0.42s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash__art,
+  .splash__veil,
+  .splash__mark,
+  .splash__title span,
+  .splash__seal,
+  .splash__foot,
+  .splash__line::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
   }
 }

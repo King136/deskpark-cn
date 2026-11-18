@@ -14,3 +14,66 @@
   color: var(--ink);
   word-break: break-all;
 }
+
+/* ---------- 形象工作室 ---------- */
+.studio {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.studio__preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 120% at 20% 0%, var(--accent-soft), transparent 60%),
+    var(--surface-2);
+}
+.studio__stage {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 96px;
+  min-height: 96px;
+}
+.studio__preview.is-figure .studio__stage {
+  min-height: 150px;
+}
+.studio__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.studio__meta b {
+  font-size: 16px;
+  font-weight: 700;
+}
+.studio__meta small {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.studio__switch {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.studio__switch.is-on {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+.studio .avatar-picker {
+  max-height: 42vh;
+  overflow: auto;
+  padding: 2px;
+}

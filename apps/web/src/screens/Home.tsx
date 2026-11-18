@@ -240,7 +240,6 @@ export function Home() {
     void runScan(true);
     const timer = setInterval(() => void runScan(true), 10000);
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const HOT_IDS = ['doudizhu', 'guandan', 'mahjong', 'texas', 'chess', 'uno'];
@@ -250,18 +249,6 @@ export function Home() {
   const shown =
     cat === 'all' ? GAME_UIS : GAME_UIS.filter((g) => getGame(g.id)?.meta.category === cat);
   const catTitle = CATEGORIES.find((c) => c.id === cat)?.title ?? '全部玩法';
-  const groups = CATEGORIES.map((c) => ({
-    ...c,
-    games: GAME_UIS.filter((g) => getGame(g.id)?.meta.category === c.id),
-  })).filter((g) => g.games.length > 0);
-  const tile = (ui: GameUI) => (
-    <GameTile
-      key={ui.id}
-      ui={ui}
-      def={getGame(ui.id)!}
-      onPick={(mode) => setSetup({ gameId: ui.id, mode })}
-    />
-  );
 
   return (
     <div className="home lobby">
@@ -306,7 +293,7 @@ export function Home() {
           <div className="main__me">
             <button className="me-chip" onClick={() => navigate('/me')} aria-label="个人中心">
               <Avatar name={p.name} avatar={p.avatar} size={26} />
-              <span>{p.name}</span>
+              <span className="me-chip__name">{p.name}</span>
             </button>
             <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
               <Settings2 size={18} />

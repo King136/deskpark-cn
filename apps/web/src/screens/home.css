@@ -141,10 +141,11 @@
   flex: none;
 }
 
+/* 卡片尺寸全部走变量：手机竖屏双列、平板/桌面多列，只改变量不复制整段样式 */
 .games {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--gtile-min, 300px)), 1fr));
+  gap: var(--gtile-gap, 18px);
 }
 .gtile {
   position: relative;
@@ -182,7 +183,11 @@
 }
 .gtile__art {
   position: relative;
-  height: 148px;
+  height: var(--gtile-art-h, 148px);
+  /* 小卡（大厅四列）里插画必须按自身宽度缩放，否则固定像素的画稿会撑爆列宽并横向溢出 */
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
   background: radial-gradient(
     120% 120% at 30% 20%,
     color-mix(in srgb, var(--t1) 100%, #fff 6%),
@@ -232,11 +237,49 @@
     translate: 0 calc(var(--i) * var(--i) * 3px - 6px);
   }
 }
+/* 缩略图统一 border-box：各 art 组件都是 width:100% + padding:8~10px，
+   缺 box-sizing 会多出 padding 的宽度，右列被裁掉一截（吹牛骰、2048 最明显）。 */
+.gtile__art,
+.gtile__art > * {
+  box-sizing: border-box;
+}
+
+/* 固定像素的画稿按 art 容器宽度等比缩小：
+   大厅小卡只有 77–97px 宽，画稿原稿 96–200px，不缩放就会撑爆列宽并横向溢出。
+   用 zoom 而不是 scale：scale 只改视觉不改布局，flex 子项仍按原宽排布、居中会错位；
+   zoom 把布局尺寸一起缩小，容器测出的宽高就等于缩放后的真实宽高。
+   <设计宽> = 画稿真实视觉包围盒（实测），除号两边都是长度 → 结果为数值。 */
+.xp-art {
+  zoom: min(1, calc(100cqw / 183px));
+}
+.cp-art {
+  zoom: min(1, calc(100cqw / 184px));
+}
+.hi-art {
+  zoom: min(1, calc(100cqw / 150px));
+}
+.gg-art {
+  zoom: min(1, calc(100cqw / 186px));
+}
+.occ-art {
+  zoom: min(1, calc(100cqw / 150px));
+}
+.ss-art {
+  zoom: min(1, calc(100cqw / 154px));
+}
+/* 扑克扇与麻将排的牌宽是 clamp(…,9vw/7vw,…)，随屏幕变化，设计宽也用 vw 表达 */
+.gtile__fan {
+  zoom: min(1, calc(100cqw / min(133px, 20.5vw)));
+}
+.gtile__tiles {
+  zoom: min(1, calc(100cqw / clamp(104px, calc(21vw + 6px), 144px)));
+}
 .gtile__body {
-  padding: 18px 20px 20px;
+  padding: var(--gtile-pad, 18px 20px 20px);
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
 }
 .gtile__head {
   display: flex;
@@ -246,9 +289,10 @@
 }
 .gtile__head h3 {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: var(--gtile-title, 22px);
   font-weight: 650;
   letter-spacing: 0.08em;
+  min-width: 0;
 }
 .gtile__people {
   display: inline-flex;
@@ -257,11 +301,12 @@
   font-size: 12.5px;
   color: var(--ink-3);
   white-space: nowrap;
+  flex: none;
 }
 .gtile__tagline {
   margin-top: 6px;
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: var(--gtile-desc, 14px);
   flex: 1;
 }
 .gtile__actions {
@@ -294,8 +339,8 @@
   color: var(--ink-3);
   margin-bottom: 14px;
 }
-.games-group.is-more .gtile__art {
-  height: 112px;
+.games-group.is-more {
+  --gtile-art-h: 112px;
 }
 .more__note {
   margin-top: 14px;
@@ -378,28 +423,31 @@
   .games {
     gap: 14px;
   }
+  /* 以下手机横排样式只属于旧的大卡 .gtile。
+     .tomb / .hot-card 复用 .gtile__art，若不收窄作用域，
+     它们的 art 会被强制成 118px 宽（列宽只有 77–87px），直接撑爆并横向溢出。 */
   .gtile {
     flex-direction: row;
   }
-  .gtile__art {
+  .gtile .gtile__art {
     width: 118px;
     height: auto;
     flex: none;
   }
-  .gtile__fan {
-    transform: scale(0.82);
+  .gtile .gtile__fan {
+    scale: 0.82;
   }
-  .gtile__body {
+  .gtile .gtile__body {
     padding: 14px 16px 16px;
   }
-  .gtile__head {
+  .gtile .gtile__head {
     flex-direction: column;
     gap: 0;
   }
-  .gtile__tagline {
+  .gtile .gtile__tagline {
     font-size: 13px;
   }
-  .gtile__actions {
+  .gtile .gtile__actions {
     margin-top: 10px;
   }
   .resume {
@@ -570,7 +618,7 @@
 }
 .hot__row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -664,15 +712,18 @@
 /* 墓碑瀑布：四列 */
 .wall__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* minmax(0, 1fr)：列宽不允许被内容最小宽度顶开，这是 360px 屏横向溢出的根因 */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   align-content: start;
 }
 .tomb {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  /* 必须是 block：<button> 作为 flex 容器时 Chrome 会生成匿名 wrapper，
+     其宽度按 max-content 撑开，art 的 width:100% 就变成 118px 而不是列宽 87px。 */
+  display: block;
   overflow: hidden;
+  min-width: 0;
   padding: 0;
   border-radius: 11px 11px 9px 9px;
   background: var(--surface);
@@ -692,6 +743,7 @@
   z-index: 1;
 }
 .tomb__name {
+  display: block;
   padding: 6px 6px 1px;
   font-size: 11.5px;
   font-weight: 650;
@@ -701,6 +753,7 @@
   text-overflow: ellipsis;
 }
 .tomb__meta {
+  display: block;
   padding: 0 6px 8px;
   font-size: 9.5px;
   color: var(--ink-3);

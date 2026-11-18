@@ -1,7 +1,7 @@
 .sn { display: flex; flex-direction: column; height: 100%; gap: 8px; }
 .sn__head { display: flex; gap: 14px; padding: 2px 6px; font-size: 12.5px; color: var(--felt-ink-2); }
 .sn__stage { flex: 1; display: grid; place-items: center; min-height: 0; }
-.sn__board { display: grid; gap: 1px; width: min(100%, 80vh); aspect-ratio: 1; padding: 6px; border-radius: 10px; background: rgba(12, 20, 16, 0.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
+.sn__board { display: grid; gap: 1px; width: min(calc(100cqw - 16px), calc(100cqh - 140px), 560px); aspect-ratio: 1; padding: 6px; border-radius: 10px; background: rgba(12, 20, 16, 0.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1); }
 .sn__board i { background: rgba(255,255,255,0.05); border-radius: 2px; }
 .sn__board i.body { background: #6fb37a; }
 .sn__board i.head { background: #a6e3a1; }

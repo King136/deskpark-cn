@@ -48,26 +48,41 @@ export function DuelLayout({
   const compact = useCompact();
   const k = useSeatScale();
   const [ref, box] = useBox();
+  /** 手机竖屏：侧栏会把棋盘挤到只剩一半宽，改成「棋盘在上、信息条在下」 */
+  const stacked = box.w > 0 && box.w < 640;
+  const stripH = 168;
   const sideW = compact ? 230 : Math.round(Math.min(340, Math.max(270, box.w * 0.24)) * k);
   const gap = compact ? 10 : 22;
-  const h = Math.max(0, Math.min(box.h, (box.w - sideW - gap) / aspect));
+  const h = stacked
+    ? Math.max(0, Math.min(box.h - stripH - 10, (box.w - 12) / aspect))
+    : Math.max(0, Math.min(box.h, (box.w - sideW - gap) / aspect));
   const w = Math.floor(h * aspect);
   return (
-    <div className={`duel ${className}`} style={{ '--k': k } as CSSProperties}>
+    <div className={`duel ${stacked ? 'is-stacked' : ''} ${className}`} style={{ '--k': k } as CSSProperties}>
       <div className="duel__arena" ref={ref}>
-        {box.w > 0 && (
-          <div className="duel__row" style={{ gap }}>
-            <div className="duel__board" style={{ width: w }}>
-              {board}
+        {box.w > 0 &&
+          (stacked ? (
+            <div className="duel__stack">
+              <div className="duel__board" style={{ width: w }}>
+                {board}
+              </div>
+              <div className="duel__strip" style={{ minHeight: stripH }}>
+                {side}
+              </div>
             </div>
-            <aside
-              className="duel__side"
-              style={{ width: sideW, height: Math.max(h, compact ? 0 : 420) }}
-            >
-              {side}
-            </aside>
-          </div>
-        )}
+          ) : (
+            <div className="duel__row" style={{ gap }}>
+              <div className="duel__board" style={{ width: w }}>
+                {board}
+              </div>
+              <aside
+                className="duel__side"
+                style={{ width: sideW, height: Math.max(h, compact ? 0 : 420) }}
+              >
+                {side}
+              </aside>
+            </div>
+          ))}
       </div>
     </div>
   );

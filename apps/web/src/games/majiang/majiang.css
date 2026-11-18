@@ -1,17 +1,363 @@
-.mj { display: flex; flex-direction: column; height: 100%; gap: 8px; }
-.mj__head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--felt-ink-2); padding: 0 4px; }
-.mj__table { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.mj__pile { border-radius: 8px; padding: 6px; background: rgba(255,255,255,0.06); font-size: 11.5px; color: var(--felt-ink-2); }
-.mj__pile.is-turn { box-shadow: inset 0 0 0 1px #ffd479; }
-.mj__pile-cards { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; min-height: 22px; }
-.mj__pile-cards i { font-style: normal; font-size: 11px; padding: 2px 4px; border-radius: 4px; background: #f2ead9; color: #3a3226; }
-.mj__melds { display: flex; gap: 6px; flex-wrap: wrap; min-height: 20px; }
-.mj__meld { font-size: 11.5px; padding: 3px 6px; border-radius: 6px; background: rgba(255,255,255,0.14); color: var(--felt-ink); }
-.mj__hand { display: flex; gap: 4px; overflow-x: auto; padding: 4px 0; }
-.mj__tile { min-width: 42px; height: 58px; border: 0; border-radius: 7px; background: #f2ead9; color: #33302a; font-size: 14px; font-weight: 700; }
-.mj__tile.is-on { box-shadow: 0 0 0 2px #ffd479; }
-.mj__ops { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 8px; }
-.mj__ops > * { flex: 1; min-width: 64px; }
-.mj__result { margin: 0; font-size: 12.5px; color: var(--ink-2); }
-.mj-art { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; width: 100%; height: 100%; padding: 8px; background: #23503c; }
-.mj-art i { display: grid; place-items: center; border-radius: 4px; background: #f2ead9; color: #33302a; font-style: normal; font-size: 11px; font-weight: 700; }
+/* ============================ 麻将牌桌 ============================
+   四面牌河 + 中央牌墙 + 底部手牌。所有尺寸跟随 .board__stage 的容器单位，
+   舞台整体缩放时牌桌比例不变，不会再出现「手牌被切一半、桌面大片空白」。
+   ================================================================= */
+.mj {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 8px 6px;
+}
+.mj__table {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 64px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'top top top'
+    'left center right'
+    'bottom bottom bottom';
+  gap: 5px;
+}
+.mj__area-top {
+  grid-area: top;
+}
+.mj__area-left {
+  grid-area: left;
+}
+.mj__area-right {
+  grid-area: right;
+}
+.mj__area-bottom {
+  grid-area: bottom;
+}
+.mj__center {
+  grid-area: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 0;
+}
+
+/* ---------- 对手 ---------- */
+.mj__opp {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px 7px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.mj__opp.is-turn {
+  box-shadow:
+    inset 0 0 0 1px rgba(231, 200, 134, 0.55),
+    0 0 14px rgba(231, 200, 134, 0.12);
+}
+.mj__opp.is-left,
+.mj__opp.is-right {
+  height: 100%;
+  overflow: hidden;
+}
+.mj__opp-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  min-width: 0;
+}
+.mj__opp-head span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.mj__opp-head small {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--felt-ink-3);
+  white-space: nowrap;
+}
+.mj__opp-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+}
+.mj__opp.is-left .mj__opp-hand,
+.mj__opp.is-right .mj__opp-hand {
+  max-height: 58px;
+  overflow: hidden;
+}
+.mj__river {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-content: flex-start;
+}
+.mj__river.is-left,
+.mj__river.is-right {
+  flex-direction: column;
+  max-height: 100%;
+  overflow: hidden;
+}
+.mj__river.is-bottom {
+  justify-content: center;
+}
+.mj__opp-melds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--felt-ink-2);
+}
+.mj__opp-melds span {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+
+/* ---------- 中央 ---------- */
+.mj__compass {
+  display: grid;
+  grid-template-columns: repeat(2, 30px);
+  gap: 3px;
+}
+.mj__compass i {
+  font-style: normal;
+  font-size: 11px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--felt-ink-3);
+}
+.mj__compass i.is-on {
+  background: rgba(231, 200, 134, 0.9);
+  color: #33270f;
+  font-weight: 800;
+}
+.mj__wall,
+.mj__last {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--felt-ink-3);
+}
+.mj__wall b {
+  font-size: 18px;
+  color: var(--felt-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 牌面 ---------- */
+.mj__face {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 4px;
+  background: #f6f0e2;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 0 rgba(140, 120, 90, 0.28);
+  color: #2f2b24;
+}
+.mj__face b {
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+}
+.mj__face.is-small {
+  width: 20px;
+  height: 27px;
+}
+.mj__face.is-small b {
+  font-size: 9.5px;
+}
+.mj__face.suit-wan b {
+  color: #b23b34;
+}
+.mj__face.suit-tiao b {
+  color: #1f7a52;
+}
+.mj__face.suit-tong b {
+  color: #2c5fa8;
+}
+.mj__face.suit-honor b {
+  color: #6b3b8f;
+}
+.mj__back {
+  display: inline-block;
+  width: 12px;
+  height: 18px;
+  border-radius: 3px;
+  background: linear-gradient(160deg, #3f7b64, #23503c);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+.mj__back.is-small {
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+/* ---------- 我的区域 ---------- */
+.mj__mine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 4px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.mj__mine-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--felt-ink-2);
+}
+.mj__mine-head b {
+  font-size: 13px;
+  color: var(--felt-ink);
+}
+.mj__mine-head small {
+  margin-left: auto;
+  color: var(--felt-accent);
+  font-weight: 600;
+}
+.mj__mine-melds {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.mj__mine-melds em {
+  font-style: normal;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.mj__hand {
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  min-width: 0;
+  padding-top: 2px;
+}
+.mj__tile {
+  flex: 0 1 44px;
+  min-width: 22px;
+  height: clamp(46px, 8.2cqh, 62px);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #fbf6ea, #ece3ce);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 -3px 0 rgba(150, 128, 96, 0.35);
+  font-size: clamp(11px, 2.9cqw, 15px);
+  font-weight: 800;
+  color: #2f2b24;
+  display: grid;
+  place-items: center;
+}
+.mj__tile.suit-wan {
+  color: #b23b34;
+}
+.mj__tile.suit-tiao {
+  color: #1f7a52;
+}
+.mj__tile.suit-tong {
+  color: #2c5fa8;
+}
+.mj__tile.suit-honor {
+  color: #6b3b8f;
+}
+.mj__tile.is-on {
+  translate: 0 -8px;
+  box-shadow:
+    0 8px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px #e7c886;
+}
+
+/* ---------- 操作 ---------- */
+.mj__ops {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  min-height: 0;
+}
+.mj__ops:empty {
+  display: none;
+}
+.mj__ops > * {
+  min-width: 64px;
+}
+.mj__result {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* 大厅缩略图：牌面窄，格数按 art 容器宽度自适应，否则「九万」两字会溢出到相邻卡片 */
+.mj-art {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  background: #23503c;
+}
+.mj-art i {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #f6f0e2;
+  color: #33302a;
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+@container (max-width: 132px) {
+  .mj-art {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px;
+  }
+  .mj-art i:nth-child(n + 7) {
+    display: none;
+  }
+  .mj-art i {
+    font-size: 8px;
+    border-radius: 2px;
+  }
+}
+@container (max-width: 104px) {
+  .mj-art {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 5px;
+  }
+  .mj-art i:nth-child(n + 5) {
+    display: none;
+  }
+  .mj-art i {
+    font-size: 9px;
+  }
+}

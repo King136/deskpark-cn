@@ -173,3 +173,55 @@
     font-size: 12px;
   }
 }
+
+/* ---------- 手机竖屏：棋盘在上、信息条在下 ---------- */
+.duel__stack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2px 6px 4px;
+}
+.duel.is-stacked .duel__board {
+  flex: none;
+}
+.duel__strip {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+}
+.duel.is-stacked .duel__side {
+  width: 100% !important;
+  height: auto !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+  overflow: visible;
+}
+.duel.is-stacked .duel-card {
+  padding: 6px 9px;
+  gap: 4px;
+}
+.duel.is-stacked .duel-card__captured {
+  display: none;
+}
+.duel.is-stacked .duel-status {
+  min-height: 0;
+  padding: 7px 10px;
+  font-size: 12.5px;
+}
+.duel.is-stacked .duel-moves {
+  display: none;
+}
+.duel.is-stacked .duel-actions {
+  grid-column: 1 / -1;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+.duel.is-stacked .coach-panel {
+  display: none;
+}

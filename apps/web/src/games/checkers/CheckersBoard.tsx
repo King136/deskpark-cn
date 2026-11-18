@@ -45,7 +45,13 @@ export default function CheckersBoard({ ctl }: { ctl: Ctl }) {
         <span>{myTurn ? '轮到你' : '等对方'}</span>
       </div>
       <div className="ck__stage">
-        <div className="ck__board" style={{ gridTemplateColumns: `repeat(${v.size}, 1fr)` }}>
+        <div
+          className="ck__board"
+          style={{
+            gridTemplateColumns: `repeat(${v.size}, 1fr)`,
+            gridTemplateRows: `repeat(${v.size}, minmax(0, 1fr))`,
+          }}
+        >
           {v.board.map((val, i) => {
             const x = i % v.size;
             const y = Math.floor(i / v.size);

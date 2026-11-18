@@ -42,8 +42,14 @@ export default function BattleBoard({ ctl }: { ctl: Ctl }) {
         <span>{myTurn ? '轮到你开炮' : '等对方'}</span>
       </div>
       <div className="bt__stage">
-        <div className="bt__grid" style={{ gridTemplateColumns: `repeat(${v.size}, 1fr)` }}>{foeCells}</div>
-        <div className="bt__grid is-mine" style={{ gridTemplateColumns: `repeat(${v.size}, 1fr)` }}>{mineCells}</div>
+        <div className="bt__grid" style={{
+          gridTemplateColumns: `repeat(${v.size}, 1fr)`,
+          gridTemplateRows: `repeat(${v.size}, minmax(0, 1fr))`,
+        }}>{foeCells}</div>
+        <div className="bt__grid is-mine" style={{
+          gridTemplateColumns: `repeat(${v.size}, 1fr)`,
+          gridTemplateRows: `repeat(${v.size}, minmax(0, 1fr))`,
+        }}>{mineCells}</div>
       </div>
       <Sheet
         open={v.over}

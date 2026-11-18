@@ -10,7 +10,7 @@ import { CHARACTERS, THEME_NAME, getCharacter } from '../components/pixel/charac
 import { CharacterSprite } from '../components/pixel/CharacterSprite';
 import { PixelAvatar } from '../components/pixel/PixelAvatar';
 import type { VirtualCharacter } from '../lib/characters';
-import { figureHeight, findCharacter, useCharacters } from '../lib/characters';
+import { figureFor, figureHeight, findCharacter, useCharacters } from '../lib/characters';
 import { profile, settings } from '../lib/store';
 import type { FeltTheme } from '../lib/store';
 import { online } from '../lib/online';
@@ -23,6 +23,7 @@ import {
   stopHost,
   type HostState,
 } from '../lib/localHost';
+import './settings.css';
 
 export const FELTS: { value: FeltTheme; label: string; color: string }[] = [
   { value: 'jade', label: '墨绿', color: '#2a6152' },
@@ -153,27 +154,63 @@ export function FigureModeSwitch() {
       onChange={(m) => settings.set({ figures: m === 'figure' })}
       options={[
         { value: 'pixel', label: '像素头像' },
-        { value: 'figure', label: '虚拟形象' },
+        { value: 'figure', label: '全身形象' },
       ]}
     />
   );
 }
 
-function AvatarSection() {
+/**
+ * 形象工作室：一个地方同时看见「现在长什么样」和「还能换成谁」。
+ * 之前「我的 → 更换形象」只留了像素头像，全身立绘入口被漏掉，就是这个组件的意义。
+ */
+export function AvatarStudio({ preview = 132 }: { preview?: number }) {
   const p = profile.use();
   const s = settings.use();
   const list = useCharacters();
-  const figures = s.figures && list.length > 0;
-  const current = findCharacter(list, p.avatar)?.name ?? getCharacter(p.avatar)?.name;
+  const figures = list.length > 0;
+  const showFigure = s.figures && figures;
+  const fig = findCharacter(list, p.avatar) ?? figureFor(list, p.avatar, p.name);
+  const pixelName = getCharacter(p.avatar)?.name ?? '像素头像';
+  return (
+    <div className="studio">
+      <div className={`studio__preview${showFigure ? ' is-figure' : ''}`}>
+        <div className="studio__stage">
+          {showFigure && fig ? (
+            <CharacterSprite character={fig} height={figureHeight(fig, preview)} seed={fig.id} />
+          ) : (
+            <PixelAvatar avatar={p.avatar} name={p.name} size={preview * 0.72} />
+          )}
+        </div>
+        <div className="studio__meta">
+          <b>{showFigure ? (fig?.name ?? '虚拟形象') : pixelName}</b>
+          <small>
+            {showFigure
+              ? '牌桌上以全身立绘显示，走动、抬手都会动'
+              : '牌桌与聊天里使用的小头像，像素风'}
+          </small>
+          {figures && (
+            <span className={`studio__switch${s.figures ? ' is-on' : ''}`}>
+              {showFigure ? '全身形象已开启' : '当前使用像素头像'}
+            </span>
+          )}
+        </div>
+      </div>
+      {figures && <FigureModeSwitch />}
+      {showFigure ? <FigurePicker /> : <AvatarPicker />}
+    </div>
+  );
+}
+
+function AvatarSection() {
   return (
     <div className="field field--stack">
       <div className="field__label">
         <span>形象</span>
-        <small>{current ?? ''}</small>
+        <small>像素头像与全身立绘，随时切换</small>
       </div>
-      <FigureModeSwitch />
-      {figures && <p className="field__note">牌桌上所有人（包括电脑）都会以全身形象显示</p>}
-      {figures ? <FigurePicker /> : <AvatarPicker />}
+      <AvatarStudio preview={116} />
+      <p className="field__note">开启全身形象后，牌桌上所有人（包括电脑）都会以立绘显示。</p>
     </div>
   );
 }

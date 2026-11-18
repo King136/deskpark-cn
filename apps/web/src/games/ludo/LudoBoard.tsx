@@ -31,15 +31,34 @@ export default function LudoBoard({ ctl }: { ctl: Ctl }) {
         ))}
       </div>
       <div className="ld__board">
-        {v.pos.map((tokens, p) => (
-          <div key={p} className="ld__row">
-            <span className="ld__name" style={{ color: HUE[p] }}>{p === v.seat ? '我' : NAMES[p] ?? `座${p + 1}`}</span>
-            {Array.from({ length: v.track }, (_, c) => {
-              const here = tokens.filter((q) => q === c).length;
-              return <i key={c} className={here ? 'on' : ''} style={here ? { background: HUE[p] } : undefined} />;
-            })}
-          </div>
-        ))}
+        <div
+          className="ld__track"
+          style={{ gridTemplateColumns: `repeat(${Math.max(6, Math.ceil(Math.sqrt(v.track * 1.4)))}, 1fr)` }}
+        >
+          {Array.from({ length: v.track }, (_, c) => {
+            const here = v.pos
+              .map((tokens, p) => ({ p, n: tokens.filter((q) => q === c).length }))
+              .filter((x) => x.n > 0);
+            return (
+              <div key={c} className={`ld__cell${c === v.track - 1 ? ' is-goal' : ''}`} title={`第 ${c + 1} 格`}>
+                {here.map((h) => (
+                  <i key={h.p} style={{ background: HUE[h.p] }}>
+                    {h.n > 1 ? h.n : ''}
+                  </i>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+        <div className="ld__legend">
+          {v.pos.map((_, p) => (
+            <span key={p}>
+              <i style={{ background: HUE[p] }} />
+              {p === v.seat ? '我' : NAMES[p] ?? `座${p + 1}`}
+            </span>
+          ))}
+          <span>终点 · 第 {v.track} 格</span>
+        </div>
       </div>
       <div className="ld__ops">
         <Button disabled={!myTurn || v.dice > 0} onClick={() => { ctl.act({ type: 'roll' }); }}>掷骰</Button>

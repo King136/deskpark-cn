@@ -29,8 +29,9 @@
   --n: 15;
   display: grid;
   grid-template-columns: repeat(var(--n), 1fr);
-  width: min(100%, 92vh);
+  width: min(calc(100cqw - 16px), calc(100cqh - 44px), 680px);
   aspect-ratio: 1;
+  grid-template-rows: repeat(var(--n), minmax(0, 1fr));
   padding: 8px;
   border-radius: 10px;
   background: linear-gradient(160deg, #e9cf9a, #caa468);

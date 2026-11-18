@@ -1,10 +1,10 @@
 import type { ChatMessage } from '@park/protocol';
 import { EMOTES } from '@park/protocol';
-import { ChevronDown, GripHorizontal, Smile } from 'lucide-react';
+import { ChevronDown, GripHorizontal, Smile, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { GameController } from '../lib/controller';
 import { activeSeat, phaseText, seatCounts, seatScores, secondsLeft } from '../lib/hudFacts';
-import { online, useOnline } from '../lib/online';
+import { useOnline } from '../lib/online';
 import { ChatPanel } from './Chat';
 import { PixelAvatar } from './pixel/PixelAvatar';
 import { signed } from '../lib/format';
@@ -25,76 +25,45 @@ export interface TableHudProps {
   };
   onToggle: () => void;
   onGrab: (e: React.PointerEvent<HTMLDivElement>) => void;
+  /** 打开战绩面板（座位/积分详情都收在那里，交互区只留一行） */
+  onStats?: () => void;
 }
 
-/** 牌友状态：谁在场、谁托管、剩多少张牌 */
-function SeatCard({ ctl }: { ctl: GameController }) {
+/** 一排座位：头像 + 名字 + 张数/分数，替代原来占半屏的两张卡 */
+function SeatStrip({ ctl }: { ctl: GameController }) {
   const v = (ctl.view ?? {}) as Record<string, unknown>;
   const scores = seatScores(v);
   const counts = seatCounts(v);
   const turn = activeSeat(v);
-
   return (
-    <section className="hud__card">
-      <h4>牌友状态</h4>
-      <ul>
-        {ctl.players.map((p, i) => (
-          <li key={i} className={`${p.isMe ? 'is-me' : ''} ${turn === i && !ctl.over ? 'is-turn' : ''}`}>
-            <PixelAvatar avatar={p.avatar} name={p.name} size={20} />
-            <span className="hud__card-name">{p.name}</span>
-            {p.isMe && <i className="hud__tag">我</i>}
-            <span className="hud__card-meta">
-              {p.auto ? '托管' : p.thinking ? '思考中' : !p.connected ? '掉线' : ''}
-              {counts ? `${counts[i] ?? '—'} 张` : scores ? `${scores[i] ?? '—'} 分` : ''}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/** 本房娱乐分：联机用房间累计，单机用本局积分 */
-function ScoreCard({ ctl }: { ctl: GameController }) {
-  const online_ = useOnline();
-  const rows = online_.roomScores;
-  const local = seatScores(ctl.view);
-
-  return (
-    <section className="hud__card">
-      <h4>
-        本房娱乐分
-        {online_.roomScores.length > 0 && <small>进房以来</small>}
-      </h4>
-      {rows.length > 0 ? (
-        <ul>
-          {rows.map((r) => (
-            <li key={r.seat}>
-              <PixelAvatar avatar={r.avatar} name={r.name ?? '?'} size={20} />
-              <span className="hud__card-name">{r.name ?? `座 ${r.seat + 1}`}</span>
-              <b className={r.session > 0 ? 'pos' : r.session < 0 ? 'neg' : ''}>
-                {signed(r.session)}
-              </b>
-            </li>
-          ))}
-        </ul>
-      ) : local ? (
-        <ul>
-          {ctl.players.map((p, i) => (
-            <li key={i} className={p.isMe ? 'is-me' : ''}>
-              <PixelAvatar avatar={p.avatar} name={p.name} size={20} />
-              <span className="hud__card-name">{p.name}</span>
-              <b className={(local[i] ?? 0) > 0 ? 'pos' : (local[i] ?? 0) < 0 ? 'neg' : ''}>
-                {signed(local[i] ?? 0)}
-              </b>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="hud__card-empty">单人练习不计娱乐分</p>
-      )}
-      <footer>仅记输赢，不能充值或兑换</footer>
-    </section>
+    <div className="hud__seats" role="list">
+      {ctl.players.map((p, i) => (
+        <div
+          key={i}
+          role="listitem"
+          className={`hud__seat${p.isMe ? ' is-me' : ''}${turn === i && !ctl.over ? ' is-turn' : ''}`}
+        >
+          <PixelAvatar avatar={p.avatar} name={p.name} size={26} />
+          <span className="hud__seat-text">
+            <b>{p.name}</b>
+            <small>
+              {!p.connected
+                ? '掉线'
+                : p.auto
+                  ? '托管'
+                  : counts
+                    ? `${counts[i] ?? '—'} 张`
+                    : scores
+                      ? `${signed(scores[i] ?? 0)} 分`
+                      : p.thinking
+                        ? '思考中'
+                        : '在座'}
+            </small>
+          </span>
+          {p.isMe && <i className="hud__tag">我</i>}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -106,6 +75,7 @@ export function TableHud({
   chat,
   onToggle,
   onGrab,
+  onStats,
 }: TableHudProps) {
   const online_ = useOnline();
   const onEmote = chat.onEmote;
@@ -146,10 +116,15 @@ export function TableHud({
 
       <div className="hud__sheet">
         <header className="hud__head">
-          <span className="hud__head-title">牌桌信息</span>
+          <span className={`hud__dot${turn != null && !ctl.over ? ' is-on' : ''}`} />
           <span className={`hud__head-note ${turn != null && !ctl.over ? 'is-turn' : ''}`}>
             {note}
           </span>
+          {onStats && (
+            <button className="hud__head-btn" onClick={onStats} aria-label="战绩" title="战绩">
+              <Trophy size={15} />
+            </button>
+          )}
           {online_ && ctl.seat !== null && (
             <button
               className={`hud__head-btn ${emoji ? 'is-on' : ''}`}
@@ -157,11 +132,11 @@ export function TableHud({
               aria-label="表情"
               title="表情"
             >
-              <Smile size={16} />
+              <Smile size={15} />
               {chat.unread > 0 && <span className="hud__badge num">{chat.unread}</span>}
             </button>
           )}
-          <button className="hud__head-btn" onClick={onToggle} aria-label="收起或展开交互区">
+          <button className="hud__head-btn hud__head-btn--toggle" onClick={onToggle} aria-label="收起或展开交互区">
             {dock === 'open' ? '收起' : '展开'}
             <ChevronDown size={14} className={`hud__chev ${dock !== 'open' ? 'is-up' : ''}`} />
           </button>
@@ -183,10 +158,7 @@ export function TableHud({
           </div>
         )}
 
-        <div className="hud__cards">
-          <SeatCard ctl={ctl} />
-          <ScoreCard ctl={ctl} />
-        </div>
+        <SeatStrip ctl={ctl} />
 
         <div className="hud__chat">
           <ChatPanel

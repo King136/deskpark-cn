@@ -43,7 +43,8 @@
 .rv__board {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  width: min(100%, 88vh);
+  grid-template-rows: repeat(8, 1fr);
+  width: min(calc(100cqw - 16px), calc(100cqh - 44px), 620px);
   aspect-ratio: 1;
   padding: 6px;
   border-radius: 10px;
