@@ -2,6 +2,14 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.6.0] - 2026-11-18
+
+### 新增（三端产物 · 原生壳 + WebView 复用）
+- **飞牛 fpk 服务端**：`packaging/build-fpk.sh` 复用 fnpack + 内置 Node 运行时，将单文件服务 + Web 产物打为 `deskpark-0.5.0-x86.fpk`（56MB），端口 8787，桌面入口「闲亭游戏厅」。
+- **鸿蒙 HAP 客户端**：新增 `harmonyos/` ArkTS WebView 壳工程（包名 `com.deskpark.park`），构建 + 本地自签成功，`verify-app` 校验通过；含 `sign-hap.sh` 三模式签名与 README。
+- **Android APK 客户端**：Capacitor 壳，`cap sync` + Gradle 构建；`androidScheme=http` + allowMixedContent 支持局域网 `ws://` 联机。
+- 三端产物统一交付到 `/workspace/deskpark-dist/`，附 README 安装说明。
+
 ## [0.5.0] - 2026-11-18
 
 ### 新增（多平台 / 多形态设备适配）

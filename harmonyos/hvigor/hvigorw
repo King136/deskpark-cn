@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# 飞牛移动适配客户端 - Hvigor 构建包装脚本
+# 自动定位 Command Line Tools for HarmonyOS 安装位置并执行构建。
+#
+# 用法:
+#   ./hvigorw assembleHap          # 构建 HAP
+#   ./hvigorw clean                # 清理构建产物
+#
+# 环境变量:
+#   DEVECO_SDK_HOME  指定 Command Line Tools 安装目录
+#                     (默认识别 ~/command-line-tools、/opt/command-line-tools、
+#                      /usr/local/command-line-tools 及 DEVECO_SDK_HOME)
+
+set -e
+
+PROJECT_HOME="$(cd "$(dirname "$0")/.." && pwd)"
+
+# ---- 定位 Command Line Tools ----
+find_clt() {
+    local candidates=()
+
+    [ -n "$DEVECO_SDK_HOME" ] && candidates+=("$DEVECO_SDK_HOME")
+    candidates+=(
+        "$HOME/command-line-tools"
+        "/opt/command-line-tools"
+        "/usr/local/command-line-tools"
+        "$PROJECT_HOME/command-line-tools"
+    )
+
+    # macOS DevEco Studio 默认位置
+    candidates+=(
+        "/Applications/DevEco-Studio.app/Contents/tools/command-line-tools"
+        "$HOME/Applications/DevEco-Studio.app/Contents/tools/command-line-tools"
+    )
+
+    for dir in "${candidates[@]}"; do
+        if [ -x "$dir/bin/hvigorw" ]; then
+            echo "$dir"
+            return 0
+        fi
+    done
+    return 1
+}
+
+CLT_HOME="$(find_clt)" || {
+    echo "错误: 未找到 Command Line Tools for HarmonyOS。"
+    echo ""
+    echo "请先下载并解压: https://developer.huawei.com/consumer/cn/download/command-line-tools-for-hmos"
+    echo "然后通过以下任一方式指定位置:"
+    echo "  1. export DEVECO_SDK_HOME=/path/to/command-line-tools"
+    echo "  2. 解压到 ~/command-line-tools"
+    exit 1
+}
+
+export DEVECO_SDK_HOME="$CLT_HOME"
+
+# ---- 执行构建 ----
+cd "$PROJECT_HOME"
+exec "$CLT_HOME/bin/hvigorw" "$@"

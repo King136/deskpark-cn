@@ -1,0 +1,19 @@
+{
+  "version-name": "1.0.0",
+  "version-code": 1,
+  "uuid": "fnos-auto-debug",
+  "type": "debug",
+  "bundle-info": {
+    "bundle-name": "com.fnos.mobile",
+    "apl": "normal",
+    "app-feature": "hos_normal_app",
+    "development-certificate": "-----BEGIN CERTIFICATE-----\nMIICKDCCAc6gAwIBAgIEVwXK3zAKBggqhkjOPQQDAzBjMQswCQYDVQQGEwJDTjEU\nMBIGA1UECgwLT3Blbkhhcm1vbnkxGTAXBgNVBAsMEE9wZW5IYXJtb255IFRlYW0x\nIzAhBgNVBAMMGk9wZW5IYXJtb255IEFwcGxpY2F0aW9uIENBMB4XDTI2MTAyMjE0\nMzUxNVoXDTI5MTAyMTE0MzUxNVowaDELMAkGA1UEBhMCQ04xFDASBgNVBAoMC09w\nZW5IYXJtb255MRkwFwYDVQQLDBBPcGVuSGFybW9ueSBUZWFtMSgwJgYDVQQDDB9P\ncGVuSGFybW9ueSBBcHBsaWNhdGlvbiBSZWxlYXNlMFkwEwYHKoZIzj0CAQYIKoZI\nzj0DAQcDQgAE/0NUP04uMcPRSrYAXJ/M5T7nKLmhoxB9kAzIniwjLmPfSbierHye\nENutTyHoDNTeXacYJwrOkxD0VoJYPjQJeKNrMGkwHQYDVR0OBBYEFO2VzZFTXV/a\nm5g+zUB0eVfuicFPMAkGA1UdEwQCMAAwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQM\nMAoGCCsGAQUFBwMDMBgGDCsGAQQBj1sCgngBAwQIMAYCAQEKAQAwCgYIKoZIzj0E\nAwMDSAAwRQIhAJcpn8akzFozR7VSUw6wKGTtBZi0rlEyKeMZ5YceHGCvAiBDx8v9\ns/VnvsY3/x9bIUjmhD/yWnjp1+C7qYk4nLFe+A==\n-----END CERTIFICATE-----\n"
+  },
+  "restricted-permissions": [],
+  "device-ids": [],
+  "validity": {
+    "not-before": 1,
+    "not-after": 9223372036854775806
+  },
+  "permissions": {}
+}

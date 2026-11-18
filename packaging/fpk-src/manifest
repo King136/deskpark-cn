@@ -1,0 +1,21 @@
+appname=deskpark
+version=0.5.0
+display_name=闲亭游戏厅
+display_name_en_US=DeskPark
+desc=闲亭 DeskPark 家庭棋牌与掌机游戏厅：斗地主/麻将/德州等 20+ 玩法，手机/Pad/折叠屏适配，局域网联机，娱乐分只记输赢不可充值兑换。
+source=thirdparty
+platform=x86
+
+maintainer=DeskPark
+maintainer_url=https://github.com/King136/deskpark-cn
+
+service_port=8787
+checkport=false
+
+desktop_uidir=ui
+desktop_applaunchname=deskpark.main
+
+ctl_stop=true
+disable_authorization_path=true
+
+changelog=v0.5.0：五形态设备适配；修复麻将内核、结算记账与安全加固。

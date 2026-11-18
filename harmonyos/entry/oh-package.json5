@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "飞牛移动适配客户端入口模块",
+  "main": "",
+  "author": "",
+  "license": "",
+  "dependencies": {}
+}

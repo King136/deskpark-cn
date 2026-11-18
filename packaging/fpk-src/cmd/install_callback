@@ -1,0 +1,3 @@
+#!/bin/bash
+# 闲亭 DeskPark · install_callback（幂等，无需额外初始化）
+exit 0

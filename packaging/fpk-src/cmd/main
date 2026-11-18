@@ -1,0 +1,124 @@
+#!/bin/bash
+# 闲亭 DeskPark · 生命周期脚本（start / stop / status）
+# 退出码：0=成功（status 时为运行中）；1=失败；3=status 时未运行。
+# 路径使用 fnOS 注入的 TRIM_* 变量，缺失时回退到相对本脚本的默认布局。
+
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+PKG_ROOT="$(cd "$SELF_DIR/.." && pwd)"
+
+APP_DIR="${TRIM_APPDEST:-$PKG_ROOT/target}"
+ETC_DIR="${TRIM_PKGETC:-$PKG_ROOT/etc}"
+VAR_DIR="${TRIM_PKGVAR:-$PKG_ROOT/var}"
+
+PORT="${TRIM_SERVICE_PORT:-8787}"
+PID_FILE="$VAR_DIR/server.pid"
+LOG_FILE="$VAR_DIR/server.log"
+ENV_FILE="$ETC_DIR/.env"
+NODE_BIN="$APP_DIR/runtime/bin/node"
+SERVER_JS="$APP_DIR/apps/server/dist/main.js"
+WEB_DIR="$APP_DIR/apps/web/dist"
+
+mkdir -p "$VAR_DIR" 2>/dev/null || true
+ERR_LOG="${TRIM_TEMP_LOGFILE:-$VAR_DIR/error.log}"
+fail() { echo "$*" >> "$ERR_LOG" 2>/dev/null || true; echo "$*"; exit 1; }
+
+PROC_PATTERN="$SERVER_JS"
+
+is_running() {
+  [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null
+}
+
+kill_stale_instances() {
+  local pid
+  for pid in $(pgrep -f "$PROC_PATTERN" 2>/dev/null); do
+    [ "$pid" = "$$" ] && continue
+    kill "$pid" 2>/dev/null || true
+  done
+  sleep 1
+  for pid in $(pgrep -f "$PROC_PATTERN" 2>/dev/null); do
+    kill -9 "$pid" 2>/dev/null || true
+  done
+}
+
+port_busy() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -q ":$PORT$"
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -q ":$PORT$"
+  else
+    "$NODE_BIN" -e "const n=require('net');const s=n.connect(Number(process.argv[1]),'127.0.0.1');s.on('connect',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1))" "$PORT" 2>/dev/null
+  fi
+}
+
+port_owner_hint() {
+  if command -v ss >/dev/null 2>&1; then ss -ltnp 2>/dev/null | grep ":$PORT " | head -1;
+  elif command -v netstat >/dev/null 2>&1; then netstat -ltnp 2>/dev/null | grep ":$PORT " | head -1; fi
+}
+
+wait_ready() {
+  local i
+  for i in $(seq 1 40); do
+    if curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null 2>&1; then return 0; fi
+    if kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null && [ -s "$LOG_FILE" ]; then
+      grep -q "已启动" "$LOG_FILE" 2>/dev/null && return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
+case "$1" in
+  start)
+    if is_running; then echo "闲亭已在运行 (pid $(cat "$PID_FILE"))"; exit 0; fi
+    mkdir -p "$VAR_DIR" "$ETC_DIR"
+    kill_stale_instances
+    if port_busy; then
+      fail "端口 $PORT 被占用: $(port_owner_hint)
+
+处理方法：
+1) 飞牛系统占用 5666/5667、8000/8001，本应用默认 8787；
+2) SSH 执行 ss -ltnp | grep $PORT 查看占用进程；
+3) 编辑 $ENV_FILE 将 PORT 改为其他端口后重试（改后请用 http://<NAS地址>:<新端口> 访问）。"
+    fi
+    # 首次启动生成默认配置（数据落在 var 目录，升级/卸载不丢）
+    if [ ! -f "$ENV_FILE" ]; then
+      cat > "$ENV_FILE" <<EOF
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=$PORT
+PARK_DATA_DIR=$VAR_DIR/data
+EOF
+      chmod 600 "$ENV_FILE" 2>/dev/null || true
+    fi
+    [ -x "$NODE_BIN" ] || fail "Node 运行时缺失: $NODE_BIN"
+    [ -f "$SERVER_JS" ] || fail "服务文件缺失: $SERVER_JS"
+
+    cd "$APP_DIR" || fail "无法进入应用目录: $APP_DIR"
+    set -a; . "$ENV_FILE"; set +a
+    export STATIC_DIR="$WEB_DIR"
+    nohup "$NODE_BIN" "$SERVER_JS" >> "$LOG_FILE" 2>&1 &
+    echo $! > "$PID_FILE"
+
+    if wait_ready; then echo "闲亭已启动: http://<NAS地址>:$PORT"; exit 0; fi
+    fail "服务启动超时，请查看日志: $LOG_FILE"
+    ;;
+
+  stop)
+    if is_running; then
+      kill "$(cat "$PID_FILE")" 2>/dev/null
+      for _ in $(seq 1 20); do is_running || break; sleep 0.5; done
+      is_running && kill -9 "$(cat "$PID_FILE")" 2>/dev/null
+    fi
+    kill_stale_instances
+    rm -f "$PID_FILE"
+    echo "闲亭已停止"
+    exit 0
+    ;;
+
+  status)
+    if is_running; then echo "running (pid $(cat "$PID_FILE"))"; exit 0; fi
+    echo "not running"; exit 3
+    ;;
+
+  *) fail "用法: $0 {start|stop|status}" ;;
+esac

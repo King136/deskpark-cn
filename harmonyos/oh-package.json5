@@ -1,0 +1,10 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "fnos-mobile",
+  "version": "1.0.0",
+  "description": "飞牛移动适配客户端",
+  "main": "",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {}
+}

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#
+# 飞牛移动适配客户端 - Hvigor 构建入口 (项目根)
+# 委托给 hvigor/ 目录下的包装脚本执行实际构建。
+
+set -e
+PROJECT_HOME="$(cd "$(dirname "$0")" && pwd)"
+exec "$PROJECT_HOME/hvigor/hvigorw" "$@"
