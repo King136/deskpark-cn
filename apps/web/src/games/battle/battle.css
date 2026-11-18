@@ -1,0 +1,14 @@
+.bt { display: flex; flex-direction: column; height: 100%; gap: 8px; }
+.bt__head { display: flex; gap: 12px; font-size: 12.5px; color: var(--felt-ink-2); justify-content: space-between; }
+.bt__stage { flex: 1; display: grid; gap: 10px; place-content: center; min-height: 0; }
+.bt__grid { display: grid; gap: 2px; width: min(100%, 62vh); padding: 6px; border-radius: 8px; background: rgba(16, 26, 34, 0.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+.bt__grid.is-mine { width: min(100%, 34vh); opacity: 0.92; }
+.bt__cell { aspect-ratio: 1; border: 0; border-radius: 3px; background: rgba(255,255,255,0.1); color: var(--felt-ink); font-size: 11px; display: grid; place-items: center; }
+.bt__cell.miss { background: rgba(140, 170, 200, 0.36); }
+.bt__cell.hit { background: #b14a3e; }
+.bt__cell.ship { background: rgba(120, 200, 255, 0.3); }
+.bt__result { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+.bt-art { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; width: 100%; height: 100%; padding: 10px; background: #233240; }
+.bt-art i { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.bt-art i.ship { background: rgba(120,200,255,0.55); }
+.bt-art i.hit { background: #b14a3e; }

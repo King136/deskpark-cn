@@ -10,6 +10,8 @@ import { G2048Art } from './g2048/G2048Art';
 import { SudokuArt } from './sudoku/SudokuArt';
 import { BlocksArt } from './blocks/BlocksArt';
 import { SnakeArt } from './snake/SnakeArt';
+import { LiarArt } from './liar/LiarArt';
+import { BattleArt } from './battle/BattleArt';
 import { MinesArt } from './mines/MinesArt';
 import { HexArt } from './hexisle/art';
 import { OneCardArt } from './onecard/cards';
@@ -65,6 +67,24 @@ export const GAME_UIS: GameUI[] = [
     people: '2 人',
     badge: '新',
     Art: GomokuArt,
+  },
+  {
+    id: 'battle',
+    Board: lazy(() => import('./battle/BattleBoard')),
+    tint: ['#3f6b8a', '#233240'],
+    showcase: [c(1, 'S', 8), c(2, 'H', 3), c(1, 'C', 6)],
+    people: '2 人',
+    badge: '新',
+    Art: BattleArt,
+  },
+  {
+    id: 'liar',
+    Board: lazy(() => import('./liar/LiarBoard')),
+    tint: ['#7a4a4a', '#3a3030'],
+    showcase: [c(1, 'D', 5), c(2, 'S', 5), c(1, 'H', 5)],
+    people: '2-4 人',
+    badge: '新',
+    Art: LiarArt,
   },
   {
     id: 'blocks',

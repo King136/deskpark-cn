@@ -20,6 +20,8 @@ import { mines } from './games/mines';
 import { sudoku } from './games/sudoku';
 import { blocks } from './games/blocks';
 import { snake } from './games/snake';
+import { liar } from './games/liar';
+import { battle } from './games/battle';
 import { onecard } from './games/onecard';
 import { sichuan } from './games/sichuan';
 import { spellstones } from './games/spellstones';
@@ -44,6 +46,8 @@ export * as ms from './games/mines';
 export * as sd from './games/sudoku';
 export * as bk from './games/blocks';
 export * as sn from './games/snake';
+export * as li from './games/liar';
+export * as bt from './games/battle';
 export * as mj from './mahjong';
 
 export {
@@ -65,6 +69,8 @@ export {
   sudoku,
   blocks,
   snake,
+  liar,
+  battle,
 };
 
 // 内置玩法（顺序即大厅展示顺序）
@@ -87,5 +93,7 @@ for (const g of [
   sudoku,
   blocks,
   snake,
+  liar,
+  battle,
 ])
   registerGame(g);

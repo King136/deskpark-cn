@@ -33,6 +33,8 @@ describe('基础设施', () => {
       'sudoku',
       'blocks',
       'snake',
+      'liar',
+      'battle',
     ]);
     const ddz = listGames()[0];
     expect(normalizeOptions(ddz, { baseScore: 999, rounds: 3 })).toEqual({
