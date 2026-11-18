@@ -56,7 +56,9 @@ export type OcEvent =
   | { seq: number; type: 'keep'; seat: Seat }
   | { seq: number; type: 'skip'; seat: Seat }
   | { seq: number; type: 'reverse'; seat: Seat }
-  | { seq: number; type: 'challenge'; seat: Seat; target: Seat; guilty: boolean }
+  /** 质疑结果（公开：罚牌对所有人生效）。字段名用 sustained 而非 guilty——
+   *  guilty 会泄露"出牌人手里的牌"这一隐藏信息的语义，公开层只表达"质疑是否成立"。 */
+  | { seq: number; type: 'challenge'; seat: Seat; target: Seat; sustained: boolean }
   | { seq: number; type: 'catch'; seat: Seat; target: Seat }
   /** 补喊「一张」 */
   | { seq: number; type: 'uno'; seat: Seat };

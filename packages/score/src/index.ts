@@ -57,11 +57,46 @@ function clampDelta(v: number): number {
   return n;
 }
 
+/**
+ * 生成本局分差行。逐行夹断会破坏零和（例如 [200000,-100000,-100000] →
+ * [100000,-100000,-100000]，合计 -100000）；这里在夹断后把差额回填给
+ * 「仍有夹断空间且绝对值最大的座位」，保证 ∑delta 恒为 0（除非 seats<=1）。
+ * 所有可零和玩法都通过本函数，因此零和不变式集中在此处守护。
+ */
 function rowsFrom(deltas: number[], seats: number): SettlementRow[] {
-  return Array.from({ length: seats }, (_, seat) => ({
+  const rows: SettlementRow[] = Array.from({ length: seats }, (_, seat) => ({
     seat,
     delta: clampDelta(deltas[seat] ?? 0),
   }));
+  if (seats <= 1) return rows;
+  const sum = rows.reduce((a, r) => a + r.delta, 0);
+  if (sum === 0) return rows;
+  // 把 -sum 的差额回填：优先给同号且未触顶的座位（保持盈亏方向），
+  // 否则给任意未触顶的座位。可能需多轮（单个座位夹断空间不足时）。
+  let remaining = -sum;
+  for (let pass = 0; pass < seats + 1 && remaining !== 0; pass++) {
+    // 需要削减总和时 sum>0 → remaining<0，找正分且未触上界的座位扣减；反之补给负分座位
+    const needPositive = remaining < 0;
+    let pick: SettlementRow | null = null;
+    for (const r of rows) {
+      const signOk = needPositive ? r.delta > 0 : r.delta < 0;
+      const room = needPositive ? r.delta + MAX_ABS_DELTA : MAX_ABS_DELTA - r.delta;
+      if (signOk && room > 0 && (!pick || Math.abs(r.delta) > Math.abs(pick.delta))) pick = r;
+    }
+    if (!pick) {
+      // 没有同号可调整座位，退而求其次找任意有空间的座位
+      for (const r of rows) {
+        const room = needPositive ? r.delta + MAX_ABS_DELTA : MAX_ABS_DELTA - r.delta;
+        if (room > 0 && (!pick || Math.abs(r.delta) > Math.abs(pick.delta))) pick = r;
+      }
+    }
+    if (!pick) break;
+    const step = needPositive ? Math.max(-MAX_ABS_DELTA, pick.delta + remaining) - pick.delta
+                              : Math.min(MAX_ABS_DELTA, pick.delta + remaining) - pick.delta;
+    pick.delta += step;
+    remaining -= step;
+  }
+  return rows;
 }
 
 function empty(seats: number, unit = '分'): Settlement {
@@ -85,9 +120,12 @@ type Rule = (state: Rec, seats: number) => Settlement | null;
 
 const RULES: Record<string, Rule> = {
   doudizhu: (st, seats) => {
-    const scores = seatsScores(st, seats);
-    if (!scores) return null;
+    // 必须用本局 result.deltas，而非跨局累计的 state.scores——
+    // 后者会被服务端每局 settle() 重复记账，导致分数指数级虚高。
     const result = rec(st.result);
+    const roundDeltas = arr(result?.deltas)?.map((v) => num(v)).filter((v): v is number => v !== null);
+    const scores = roundDeltas && roundDeltas.length >= seats ? roundDeltas : seatsScores(st, seats);
+    if (!scores) return null;
     const multiplier = num(result?.multiplier);
     const landlordWin = result?.landlordWin === true;
     return {
@@ -99,9 +137,11 @@ const RULES: Record<string, Rule> = {
   },
 
   sichuan: (st, seats) => {
-    const scores = seatsScores(st, seats);
+    const result = rec(st.result);
+    const roundDeltas = arr(result?.deltas)?.map((v) => num(v)).filter((v): v is number => v !== null);
+    const scores = roundDeltas && roundDeltas.length >= seats ? roundDeltas : seatsScores(st, seats);
     if (!scores) return null;
-    const wins = arr(rec(st.result)?.wins) ?? [];
+    const wins = arr(result?.wins) ?? [];
     const fan = wins
       .map((w) => num(rec(w)?.fan))
       .filter((x): x is number => x !== null);

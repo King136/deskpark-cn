@@ -209,7 +209,12 @@ export function Library() {
             key={play.url}
             src={play.url}
             title={play.name}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
+            referrerPolicy="no-referrer"
+            /* 安全：绝不能同时给 allow-scripts + allow-same-origin——
+               导入的第三方游戏与父页同源时可经 parent.localStorage 窃取 API Key/身份 token。
+               去掉 allow-same-origin 后 iframe 为 opaque origin，无法访问父页存储与 DOM；
+               资源经 /__rom/ 提供并由 SW 以 CORS 放行，游戏功能不受影响。 */
+            sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock"
           />
         </div>
       )}

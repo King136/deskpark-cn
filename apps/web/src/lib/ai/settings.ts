@@ -1,8 +1,9 @@
 import { createStore } from '../store';
 
 /**
- * AI 人机设置：只保存在本机浏览器（localStorage），请求由浏览器直接发往用户填写的接口，
- * 或在开启「经服务器转发」时由本站服务器转发（服务器不保存 Key）。
+ * AI 人机设置。API Key 属于敏感凭据，保存在 sessionStorage（关闭标签页即失效），
+ * 不落入 localStorage——降低同源脚本/恶意导入游戏窃取长期密钥的风险。
+ * 请求由浏览器直接发往用户填写的接口，或经本站服务器转发（服务器不保存 Key）。
  */
 export type AiProtocol = 'anthropic' | 'openai';
 
@@ -17,14 +18,18 @@ export interface AiSettings {
   proxy: boolean;
 }
 
-export const aiSettings = createStore<AiSettings>('park.ai', {
-  protocol: 'anthropic',
-  baseUrl: '',
-  apiKey: '',
-  model: '',
-  chat: 1,
-  proxy: false,
-});
+export const aiSettings = createStore<AiSettings>(
+  'park.ai',
+  {
+    protocol: 'anthropic',
+    baseUrl: '',
+    apiKey: '',
+    model: '',
+    chat: 1,
+    proxy: false,
+  },
+  'session', // API Key 仅存会话，不持久化到 localStorage
+);
 
 export const AI_DEFAULTS: Record<AiProtocol, { baseUrl: string; model: string }> = {
   anthropic: { baseUrl: 'https://api.anthropic.com', model: 'claude-opus-5-5' },

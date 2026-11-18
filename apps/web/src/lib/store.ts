@@ -1,16 +1,28 @@
 import { useSyncExternalStore } from 'react';
 import { AVATARS } from '@park/protocol';
-import { randomToken, storage } from './platform';
+import { randomToken, sessionStorageArea, storage } from './platform';
 
-/** 极简的可订阅存储（无需额外状态库），带本地持久化。 */
-export function createStore<T extends object>(key: string, initial: T) {
-  let value: T = { ...initial, ...storage.get<Partial<T>>(key, {}) };
+type StoreArea = Pick<typeof storage, 'get' | 'set'>;
+
+/**
+ * 极简的可订阅存储（无需额外状态库）。
+ * persist='local'（默认）用 localStorage；'session' 用 sessionStorage（敏感数据，关标签页即失效）；
+ * 'none' 仅内存。
+ */
+export function createStore<T extends object>(
+  key: string,
+  initial: T,
+  persist: 'local' | 'session' | 'none' = 'local',
+) {
+  const area: StoreArea | null =
+    persist === 'local' ? storage : persist === 'session' ? sessionStorageArea : null;
+  let value: T = { ...initial, ...(area ? area.get<Partial<T>>(key, {}) : {}) };
   const listeners = new Set<() => void>();
   return {
     get: () => value,
     set(patch: Partial<T>) {
       value = { ...value, ...patch };
-      storage.set(key, value);
+      area?.set(key, value);
       listeners.forEach((l) => l());
     },
     subscribe(l: () => void) {

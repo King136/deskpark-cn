@@ -50,11 +50,14 @@ function openDb(): Promise<IDBDatabase | null> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve) => {
     if (typeof indexedDB === 'undefined') return resolve(null);
-    const req = indexedDB.open(DB_NAME, 1);
+    // 版本 2：补建 files store（zip/Cocos 解包文件与 rom-sw.js 虚拟路径依赖它）。
+    // 旧版本只建了 roms/blobs，导致 addRom 解包写 files 时抛 NotFoundError。
+    const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
       if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs');
+      if (!db.objectStoreNames.contains(FILES)) db.createObjectStore(FILES);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => resolve(null);

@@ -351,7 +351,7 @@ export const onecard: GameDefinition<OcState, OcAction, OcView, OcOptions> = {
     const p = state.pending;
     if (action.type === 'challenge') {
       state.pending = null;
-      pushEvent(state, { type: 'challenge', seat, target: p!.from, guilty: p!.guilty });
+      pushEvent(state, { type: 'challenge', seat, target: p!.from, sustained: p!.guilty });
       if (p!.guilty) {
         // 违规出 +4：出牌的人摸 4 张，质疑者照常出牌
         drawCards(state, p!.from, p!.amount, 'challenge');
@@ -484,6 +484,8 @@ export const onecard: GameDefinition<OcState, OcAction, OcView, OcOptions> = {
       window: state.window ? { seat: state.window.seat, passed: [...state.window.passed] } : null,
       called: state.called,
       scores: state.scores,
+      // challenge 事件用 sustained（质疑是否成立，公开罚牌结果）表达，
+      // 不含 guilty 字样——guilty 语义涉及被质疑者手牌，属隐藏信息，不外泄。
       events: state.events,
       result: state.result,
       history: state.history,

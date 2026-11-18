@@ -2,6 +2,19 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.3.1] - 2026-11-18
+
+### 修复（源码分析与销项 · 严重缺陷）
+- **麻将三玩法（广东推倒胡/长沙红中/国标简版）完全不可玩**：重构内核状态机（discard/claim 双阶段 + 响应窗口），bot 按阶段产出合法动作，修复"只摸牌不出牌、庄家手牌涨到 97 张"的空转；胡牌判定合并副露并支持赖子回溯；`view()` 严格信息隐藏（他家只给张数）。补 10 项回归测试，12 种子/玩法整局模拟全部正常结束。
+- **斗地主/四川娱乐分重复记账**：改用本局 `result.deltas` 而非跨局累计 `state.scores`，避免多局比赛每局重复累加导致分数虚高。
+- **夹断破坏零和**：`rowsFrom()` 逐行 clamp 后回填差额，保证 `∑delta=0`。
+- **游戏库 zip/Cocos 导入必崩**：IndexedDB 补建 `files` store（DB 升到 v2），虚拟文件服务可用。
+- **导入游戏窃取密钥**：iframe 去掉 `allow-same-origin`（改 opaque origin），SW 加 CORS 放行 + CSP + nosniff；API Key 从 localStorage 移到 sessionStorage（关标签页即失效）。
+- **UON 隐藏信息泄露**：challenge 事件的 `guilty` 改为公开的 `sustained`（质疑是否成立），不再外泄被质疑者手牌语义。
+
+### 验证
+- typecheck 通过；全量 254 项测试通过（新增麻将 10 项 + 结算 4 项回归）。
+
 ## [Unreleased]
 
 ### 新增

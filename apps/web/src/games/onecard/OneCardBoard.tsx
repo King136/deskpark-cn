@@ -227,7 +227,7 @@ export default function OneCardBoard({ ctl }: { ctl: Ctl }) {
       if (e.type === 'catch' && e.target === s) return `被抓！+${OC.UNO_PENALTY}`;
       if (e.type === 'catch' && e.seat === s) return '抓到了！';
       if (e.type === 'uno' && e.seat === s) return '一张！';
-      if (e.type === 'challenge' && e.seat === s) return e.guilty ? '质疑成功！' : '质疑失败…';
+      if (e.type === 'challenge' && e.seat === s) return e.sustained ? '质疑成功！' : '质疑失败…';
       if (e.type === 'skip' && e.seat === s) return '跳过';
       if (e.type === 'draw' && e.seat === s) return e.reason === 'draw' ? '摸牌' : `+${e.count}`;
       if (e.type === 'keep' && e.seat === s) return '留着';
@@ -258,7 +258,7 @@ export default function OneCardBoard({ ctl }: { ctl: Ctl }) {
       case 'reverse':
         return '方向反转';
       case 'challenge':
-        return e.guilty
+        return e.sustained
           ? `${name(e.seat)} 质疑成功：${name(e.target)} 违规出 +4，罚摸 4 张`
           : `${name(e.seat)} 质疑失败，罚摸 6 张`;
       case 'catch':

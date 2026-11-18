@@ -157,4 +157,40 @@ describe('娱乐分结算', () => {
     expect(t.byGame.doudizhu).toEqual({ total: 20, matches: 2 });
     expect(t.byGame.xiangqi).toEqual({ total: 1, matches: 1 });
   });
+
+  // —— S2 回归：本局结算必须用 result.deltas，不能用跨局累计 scores ——
+  it('斗地主：多局累计分不会被当成单局分差重复记账', () => {
+    const s = settleMatch('doudizhu', {
+      scores: [300, 300, -600], // 累计分（3 局）
+      result: { deltas: [1, 1, -2], multiplier: 2, landlordWin: false },
+    }, 3);
+    expect(s.rows.map((r) => r.delta)).toEqual([1, 1, -2]);
+    expect(isZeroSum(s)).toBe(true);
+  });
+
+  it('四川麻将：优先用本局 deltas 而非累计分', () => {
+    const s = settleMatch('sichuan', {
+      scores: [500, -200, -200, -100],
+      result: { deltas: [8, -4, -4, 0], wins: [{ fan: 8 }] },
+    }, 4);
+    expect(s.rows.map((r) => r.delta)).toEqual([8, -4, -4, 0]);
+    expect(isZeroSum(s)).toBe(true);
+  });
+
+  // —— S3 回归：非对称超限夹断后仍须零和 ——
+  it('斗地主：非对称超限夹断后总分守恒', () => {
+    const s = settleMatch('doudizhu', {
+      scores: [2e5, -1e5, -1e5],
+      result: { multiplier: 1, landlordWin: true },
+    }, 3);
+    expect(isZeroSum(s)).toBe(true);
+  });
+
+  it('四川麻将：非对称超限夹断后总分守恒', () => {
+    const s = settleMatch('sichuan', {
+      scores: [2e5, -1e5, -1e5],
+      result: { wins: [] },
+    }, 3);
+    expect(isZeroSum(s)).toBe(true);
+  });
 });

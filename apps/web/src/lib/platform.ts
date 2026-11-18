@@ -3,30 +3,43 @@
  * 移植到 App（Capacitor / React Native）时只需替换本文件的实现。
  */
 
-export const storage = {
-  get<T>(key: string, fallback: T): T {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw === null ? fallback : (JSON.parse(raw) as T);
-    } catch {
-      return fallback;
-    }
-  },
-  set(key: string, value: unknown): void {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      /* 隐私模式或配额已满时忽略 */
-    }
-  },
-  remove(key: string): void {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      /* ignore */
-    }
-  },
-};
+function makeArea(area: Storage | undefined) {
+  return {
+    get<T>(key: string, fallback: T): T {
+      try {
+        const raw = area?.getItem(key);
+        return raw == null ? fallback : (JSON.parse(raw) as T);
+      } catch {
+        return fallback;
+      }
+    },
+    set(key: string, value: unknown): void {
+      try {
+        area?.setItem(key, JSON.stringify(value));
+      } catch {
+        /* 隐私模式或配额已满时忽略 */
+      }
+    },
+    remove(key: string): void {
+      try {
+        area?.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+    },
+  };
+}
+
+/** 持久存储（localStorage） */
+export const storage = makeArea(typeof localStorage === 'undefined' ? undefined : localStorage);
+
+/**
+ * 会话存储（sessionStorage）：仅用于敏感数据（如用户填入的第三方 API Key）。
+ * 关闭标签页即失效，避免长期落盘被同源脚本/持久化 XSS 窃取。
+ */
+export const sessionStorageArea = makeArea(
+  typeof sessionStorage === 'undefined' ? undefined : sessionStorage,
+);
 
 /**
  * 联机服务器地址：优先使用玩家自己填的地址（App / 局域网必需），
