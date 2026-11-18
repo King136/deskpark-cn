@@ -41,6 +41,40 @@ async function lanIp(): Promise<string> {
   }
 }
 
+/** 私网地址判断：这些网段才值得扫 */
+function isPrivate(ip: string): boolean {
+  const p = ip.split('.').map(Number);
+  if (p.length !== 4 || p.some((n) => !Number.isFinite(n))) return false;
+  return (
+    p[0] === 10 ||
+    (p[0] === 172 && p[1] >= 16 && p[1] <= 31) ||
+    (p[0] === 192 && p[1] === 168) ||
+    (p[0] === 169 && p[1] === 254)
+  );
+}
+
+/**
+ * 浏览器里拿不到本机 IP（WebRTC 已被浏览器关掉这个能力），
+ * 但页面若由局域网主机提供，`location.hostname` 就是那台机器的地址，
+ * 用它所在的 /24 去扫是最靠谱的零配置猜测。原生壳里优先用真 IP。
+ */
+export function guessLanPrefix(): string {
+  const h = location.hostname;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h) && isPrivate(h)) return h.slice(0, h.lastIndexOf('.'));
+  return '';
+}
+
+/** 把 `192.168.1.9` / `192.168.1.` / `192.168.1` 都归一成 `192.168.1` */
+export function normalizePrefix(input: string): string {
+  const raw = input.trim().replace(/\s+/g, '');
+  if (!raw) return '';
+  const parts = raw.split('.').filter(Boolean);
+  if (parts.length < 2) return '';
+  if (parts.length >= 4) return parts.slice(0, 3).join('.');
+  if (parts.length === 3) return parts.join('.');
+  return '';
+}
+
 async function probe(ip: string, signal: AbortSignal): Promise<FoundHost | null> {
   try {
     const res = await fetch(`http://${ip}:${PORT}/api/lan`, { cache: 'no-store', signal });
@@ -53,13 +87,15 @@ async function probe(ip: string, signal: AbortSignal): Promise<FoundHost | null>
   }
 }
 
-/** 并行扫一个 /24，单地址 500ms 超时，整体约 8 秒内出结果 */
-export async function scanLan(): Promise<FoundHost[]> {
+/**
+ * 并行扫一个 /24，单地址 600ms 超时，整体约 7 秒内出结果。
+ * 网段来源优先级：显式传入 > 原生 lanIp > 页面域名猜测。
+ */
+export async function scanLan(explicitPrefix?: string): Promise<FoundHost[]> {
   const self = await lanIp();
-  if (!self) return [];
-  const dot = self.lastIndexOf('.');
-  if (dot < 0) return [];
-  const prefix = self.slice(0, dot);
+  const prefix =
+    normalizePrefix(explicitPrefix ?? '') || (self ? self.slice(0, self.lastIndexOf('.')) : '') || guessLanPrefix();
+  if (!prefix) return [];
   const found: FoundHost[] = [];
   const batch = 24;
 
@@ -69,7 +105,7 @@ export async function scanLan(): Promise<FoundHost[]> {
     const tasks: Promise<void>[] = [];
     for (let i = start; i < Math.min(start + batch, 255); i++) {
       const ip = `${prefix}.${i}`;
-      if (ip === self) continue;
+      if (self && ip === self) continue;
       tasks.push(
         probe(ip, ctrl.signal).then((h) => {
           if (h) found.push(h);

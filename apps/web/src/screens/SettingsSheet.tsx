@@ -15,6 +15,20 @@ import { profile, settings } from '../lib/store';
 import type { FeltTheme } from '../lib/store';
 import { online } from '../lib/online';
 import { getServerOverride, isWebview, serverUrl, setServerOverride } from '../lib/platform';
+import { guessLanPrefix, scanLan, type FoundHost } from '../lib/discover';
+import {
+  DAV_DEFAULT,
+  davDownload,
+  davStat,
+  davTest,
+  davUpload,
+  fmtTime,
+  getDavConfig,
+  setDavConfig,
+  applyPack,
+  type BackupPack,
+  type DavConfig,
+} from '../lib/webdav';
 import {
   currentHost,
   hostAvailable,
@@ -312,7 +326,23 @@ export function ServerSection() {
   const [now, setNow] = useState(() => getServerOverride());
   const [probe, setProbe] = useState('');
   const [host, setHost] = useState<HostState>(() => currentHost());
+  const [prefix, setPrefix] = useState(() => guessLanPrefix());
+  const [scanning, setScanning] = useState(false);
+  const [found, setFound] = useState<FoundHost[]>([]);
   const native = isWebview();
+
+  /* 局域网自发现：浏览器拿不到本机 IP，默认扫页面所在网段，也允许手填 */
+  const scan = async () => {
+    setScanning(true);
+    setFound([]);
+    try {
+      const list = await scanLan(prefix);
+      setFound(list);
+      if (!list.length) toast('这个网段没扫到主机，确认对方已开「本机当主机」', 'error');
+    } finally {
+      setScanning(false);
+    }
+  };
 
   /* 局域网自发现：问一句这台主机「你在吗、有几间房」 */
   const probeHost = async () => {
@@ -366,11 +396,52 @@ export function ServerSection() {
               恢复默认
             </Button>
           )}
-        </div>
-        <div className="server-field__ops">
+          {/* 探测与保存同属「这个地址通不通」，放一行省 60px 高度 */}
           <Button size="sm" variant="secondary" onClick={() => void probeHost()}>
             探测主机
           </Button>
+        </div>
+
+        {/* 局域网自发现：扫同网段里所有开着「本机当主机」的设备，点一下就直接连过去 */}
+        <div className="server-lan">
+          <div className="server-lan__row">
+            <input
+              value={prefix}
+              placeholder="网段，如 192.168.1"
+              inputMode="numeric"
+              spellCheck={false}
+              onChange={(e) => setPrefix(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && void scan()}
+              aria-label="局域网网段"
+            />
+            <Button size="sm" variant="secondary" disabled={scanning} onClick={() => void scan()}>
+              {scanning ? '扫描中…' : '扫描局域网'}
+            </Button>
+          </div>
+          {found.length > 0 && (
+            <div className="server-lan__list">
+              {found.map((h) => (
+                <button
+                  key={h.ip}
+                  className="server-lan__chip"
+                  onClick={() => {
+                    apply(`ws://${h.ip}:${h.port}/ws`);
+                    toast(`已连到 ${h.ip}`);
+                  }}
+                >
+                  <b>{h.ip}</b>
+                  <small>
+                    {h.name} · {h.rooms.length} 间房
+                  </small>
+                </button>
+              ))}
+            </div>
+          )}
+          {!scanning && found.length === 0 && (
+            <small className="server-field__now">
+              同一 Wi-Fi 下，只要有一台设备开着「本机当主机」，这里就能扫到它
+            </small>
+          )}
         </div>
         {hostAvailable() && (
           <div className="server-host">
@@ -429,6 +500,166 @@ export function ServerSection() {
   );
 }
 
+/** WebDAV 数据同步：把设置/形象/存档整包搬到自己的网盘 */
+export function SyncSection() {
+  const [cfg, setCfg] = useState<DavConfig>(() => getDavConfig());
+  const [busy, setBusy] = useState<'test' | 'up' | 'down' | ''>('');
+  const [note, setNote] = useState('');
+  const [pending, setPending] = useState<BackupPack | null>(null);
+  const patch = (p: Partial<DavConfig>) => setCfg(setDavConfig(p));
+
+  const err = (e: unknown) => setNote(e instanceof Error ? e.message : String(e));
+
+  const test = async () => {
+    setBusy('test');
+    setNote('正在探测…');
+    try {
+      const info = await davTest(cfg);
+      const st = await davStat(cfg);
+      setNote(
+        `连上了：${info}${st ? ` · 云端备份 ${fmtTime(st.modified)} · ${(st.size / 1024).toFixed(1)} KB` : ' · 云端还没有备份'}`,
+      );
+    } catch (e) {
+      err(e);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const upload = async () => {
+    setBusy('up');
+    setNote('正在上传…');
+    try {
+      const { pack, bytes } = await davUpload(cfg, navigator.platform || 'web');
+      setNote(`已备份 ${Object.keys(pack.data).length} 项 · ${(bytes / 1024).toFixed(1)} KB · ${fmtTime(pack.exportedAt)}`);
+    } catch (e) {
+      err(e);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const pull = async () => {
+    setBusy('down');
+    setNote('正在读取云端…');
+    try {
+      const pack = await davDownload(cfg);
+      setPending(pack);
+      setNote(`云端备份来自 ${fmtTime(pack.exportedAt)} · ${Object.keys(pack.data).length} 项`);
+    } catch (e) {
+      err(e);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const doRestore = () => {
+    if (!pending) return;
+    const n = applyPack(pending);
+    setPending(null);
+    toast(`已恢复 ${n} 项，重启后全部生效`);
+    // 存储是模块级单例，重新加载最稳，避免各 store 内存值与 localStorage 不一致
+    window.setTimeout(() => location.reload(), 700);
+  };
+
+  return (
+    /* 用 field--stack 而不是默认横排 Field：默认布局 label 与内容同行，
+       内容只剩半屏宽会被 input 的固有宽度撑到 460px，整个 Sheet 横向溢出 */
+    <div className="field field--stack dav-block">
+      <div className="field__label">
+        <span>数据同步（WebDAV）</span>
+        <small>坚果云 / Nextcloud / 群晖都行。填目录地址和账号，就能把设置、形象、存档整包备份</small>
+      </div>
+      <div className="field__control">
+        <div className="dav">
+        <input
+          className="dav__input"
+          value={cfg.url}
+          placeholder="https://dav.jianguoyun.com/dav/闲亭"
+          inputMode="url"
+          spellCheck={false}
+          onChange={(e) => patch({ url: e.target.value })}
+          aria-label="WebDAV 目录地址"
+        />
+        <div className="dav__row">
+          <input
+            className="dav__input"
+            value={cfg.user}
+            placeholder="账号"
+            autoComplete="username"
+            spellCheck={false}
+            onChange={(e) => patch({ user: e.target.value })}
+            aria-label="WebDAV 账号"
+          />
+          <input
+            className="dav__input"
+            value={cfg.pass}
+            placeholder="密码 / 应用密码"
+            type="password"
+            autoComplete="current-password"
+            onChange={(e) => patch({ pass: e.target.value })}
+            aria-label="WebDAV 密码"
+          />
+        </div>
+        <div className="dav__row">
+          <input
+            className="dav__input"
+            value={cfg.file}
+            placeholder={DAV_DEFAULT.file}
+            spellCheck={false}
+            onChange={(e) => patch({ file: e.target.value })}
+            aria-label="备份文件名"
+          />
+          <Button size="sm" variant="secondary" disabled={busy === 'test'} onClick={() => void test()}>
+            {busy === 'test' ? '探测中…' : '测试连接'}
+          </Button>
+        </div>
+
+        <div className="dav__ops">
+          <Button size="sm" variant="primary" disabled={busy === 'up'} onClick={() => void upload()}>
+            {busy === 'up' ? '上传中…' : '备份到云端'}
+          </Button>
+          <Button size="sm" variant="secondary" disabled={busy === 'down'} onClick={() => void pull()}>
+            {busy === 'down' ? '读取中…' : '从云端恢复'}
+          </Button>
+        </div>
+
+        <div className="dav__toggles">
+          <span className="dav__toggle">
+            记住密码
+            <Switch checked={cfg.remember} onChange={(v) => patch({ remember: v })} />
+          </span>
+          <span className="dav__toggle">
+            启动自动比对
+            <Switch checked={cfg.auto} onChange={(v) => patch({ auto: v })} />
+          </span>
+        </div>
+
+        {pending && (
+          <div className="dav__confirm">
+            <p>
+              将用云端 {fmtTime(pending.exportedAt)} 的备份覆盖本机
+              {pending.device ? `（来自 ${pending.device}）` : ''}，本机当前数据会被替换。
+            </p>
+            <div className="dav__ops">
+              <Button size="sm" variant="primary" onClick={doRestore}>
+                确认覆盖
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setPending(null); setNote(''); }}>
+                取消
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {note && <small className="dav__note">{note}</small>}
+        {!cfg.remember && <small className="dav__hint">未记住密码：关掉页面后需要重新输入</small>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsSheet({
   open,
   onClose,
@@ -452,6 +683,7 @@ export function SettingsSheet({
       )}
       <AiSection />
       <ServerSection />
+      <SyncSection />
       <Field label="桌布">
         <div className="felt-picker">
           {FELTS.map((f) => (

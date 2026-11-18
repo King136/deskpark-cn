@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Splash } from './components/Splash';
-import { Button, Sheet } from './components/ui';
-import { ToastHost, toast } from './components/ui';
+import { Button, Sheet, ToastHost, toast } from './components/ui';
+import { davCheckNewer, fmtTime } from './lib/webdav';
 import { syncBarColor } from './lib/barcolor';
 import { useDeviceForm } from './lib/deviceForm';
 import { useOnline } from './lib/online';
@@ -124,6 +124,16 @@ export function App() {
     };
     window.addEventListener('park:back', onBack);
     return () => window.removeEventListener('park:back', onBack);
+  }, []);
+
+  // 云端备份静默比对：只发一个 HEAD，云端比上次同步新就提一句，绝不自动覆盖本机
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void davCheckNewer().then(({ newer, modified }) => {
+        if (newer) toast(`云端备份更新（${fmtTime(modified)}），可在「设置 → 数据同步」里恢复`);
+      });
+    }, 2600);
+    return () => clearTimeout(t);
   }, []);
 
   // 设备画像上报：默认关闭，仅在用户显式开启（localStorage park.profile.optin='1'）后上报。

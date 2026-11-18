@@ -361,7 +361,10 @@
     0 0 0 2px var(--surface),
     0 0 0 4px var(--accent);
 }
-.field--stack {
+/* 必须写成 .field.field--stack：单类特异性与后面的 .field 相同，
+   会被 .field 的 align-items:center 覆盖，导致纵向布局里内容按自身宽度居中不撑满
+   （表现为设置页输入框/按钮被推到屏幕外）。 */
+.field.field--stack {
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
