@@ -30,6 +30,7 @@ describe('基础设施', () => {
       'reversi',
       'g2048',
       'mines',
+      'sudoku',
     ]);
     const ddz = listGames()[0];
     expect(normalizeOptions(ddz, { baseScore: 999, rounds: 3 })).toEqual({
