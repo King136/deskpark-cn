@@ -349,10 +349,20 @@ export function TableShell({
   };
 
   const [bursts, setBursts] = useState<{ emote: string; name: string; at: number }[]>([]);
+  const burstTimers = useRef<Set<number>>(new Set());
+  useEffect(() => () => {
+    // 卸载时清理未触发的表情动画定时器，避免离桌后仍 setState（L5）
+    burstTimers.current.forEach((h) => window.clearTimeout(h));
+    burstTimers.current.clear();
+  }, []);
   const fireBurst = (emote: string, name: string) => {
     const at = Date.now();
     setBursts((b) => [...b, { emote, name, at }].slice(-3));
-    window.setTimeout(() => setBursts((b) => b.filter((x) => x.at !== at)), 1800);
+    const h = window.setTimeout(() => {
+      burstTimers.current.delete(h);
+      setBursts((b) => b.filter((x) => x.at !== at));
+    }, 1800);
+    burstTimers.current.add(h);
   };
   // 通用轮次播报：所有玩法都适用（掼蛋/德州/麻将/象棋等此前完全没有报牌）
   const turnCueSpoken = useRef('');

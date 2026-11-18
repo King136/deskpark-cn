@@ -41,7 +41,7 @@ function useThemeSync() {
       root.dataset.theme = dark ? 'dark' : 'light';
       const themeName = dark ? 'dark' : 'light';
       root.style.background = dark ? '#121314' : '#f4f1ea';
-      document.body && (document.body.style.background = dark ? '#121314' : '#f4f1ea');
+      if (document.body) document.body.style.background = dark ? '#121314' : '#f4f1ea';
       try {
         const cap = (
           globalThis as {
@@ -54,21 +54,37 @@ function useThemeSync() {
       } catch {
         /* 浏览器里没有这个方法 */
       }
-      // WebView 起来后插件可能还没挂上，重试几次；回前台也再刷
-      for (const delay of [0, 400, 1200]) setTimeout(applyBar, delay);
+      // WebView 起来后插件可能还没挂上，重试几次；回前台也再刷。
+      // 统一登记定时器，卸载/主题切换时清理，避免过期回调（L5）。
+      for (const delay of [0, 400, 1200]) {
+        const h = window.setTimeout(() => {
+          timers.delete(h);
+          applyBar();
+        }, delay);
+        timers.add(h);
+      }
       document
         .querySelector('meta[name="theme-color"]')
         ?.setAttribute('content', dark ? '#121314' : '#f4f1ea');
     };
+    const timers = new Set<number>();
     apply();
     media.addEventListener('change', apply);
     const onVis = () => {
-      if (document.visibilityState === 'visible') applyBar();
+      if (document.visibilityState === 'visible') {
+        const h = window.setTimeout(() => {
+          timers.delete(h);
+          applyBar();
+        }, 0);
+        timers.add(h);
+      }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => {
       media.removeEventListener('change', apply);
       document.removeEventListener('visibilitychange', onVis);
+      timers.forEach((h) => window.clearTimeout(h));
+      timers.clear();
     };
   }, [s.theme]);
   useEffect(() => {

@@ -46,6 +46,8 @@ export interface Client {
   send: ((msg: ServerMessage) => void) | null;
   roomCode: string | null;
   lastSeen: number;
+  /** 来源 IP（用于限制单 IP 可创建的身份数，防资源耗尽） */
+  ip?: string;
   /** 最近的发言时间，用于限流 */
   chatTimes?: number[];
   /** 最近加入失败（房间号不存在）的时间，防止穷举房间号 */
@@ -63,6 +65,9 @@ export interface ServerConfig {
   seatGraceMs: number;
   /** 房间里没有在线真人多久后删除 */
   roomIdleMs: number;
+  /** 单个 IP 最多可创建的身份数（防无限 hello 耗尽内存），默认 32。
+   *  家庭/局域网常经 NAT 后同 IP，需留足正常玩家与多开测试空间。 */
+  maxIdentitiesPerIp?: number;
   /** 娱乐分存档；不传则只在本局内存里统计（测试用） */
   scores?: ScoreSink;
   /** 房间落盘；不传就纯内存（网页内主机默认走内存） */
@@ -451,7 +456,7 @@ export class Hub {
   }
 
   /** 新连接：返回该连接的消息处理器与断开回调。 */
-  connect(send: (msg: ServerMessage) => void) {
+  connect(send: (msg: ServerMessage) => void, ip?: string) {
     let client: Client | null = null;
     const onMessage = (raw: unknown) => {
       let msg: ClientMessage;
@@ -465,7 +470,13 @@ export class Hub {
       if (msg.t === 'hello') {
         // 同一连接换了身份：先让旧身份下线，避免它一直显示在线
         const prev = client;
-        client = this.hello(msg, send);
+        const next = this.hello(msg, send, ip);
+        if (!next) {
+          // 版本过旧 / 身份过多：已发错误提示，拒绝该连接后续操作
+          if (prev) this.detach(prev, send);
+          return;
+        }
+        client = next;
         if (prev && prev !== client) this.detach(prev, send);
         return;
       }
@@ -503,9 +514,12 @@ export class Hub {
   private hello(
     msg: Extract<ClientMessage, { t: 'hello' }>,
     send: (m: ServerMessage) => void,
-  ): Client {
+    ip?: string,
+  ): Client | null {
     if (msg.v !== PROTOCOL_VERSION) {
       send({ t: 'error', message: '客户端版本过旧，请刷新页面', code: 'version' });
+      // 旧协议客户端直接拒绝服务，避免带旧字段的消息进入后续逻辑
+      return null;
     }
     const token =
       typeof msg.token === 'string' && msg.token.length >= 16
@@ -513,6 +527,17 @@ export class Hub {
         : randomId(18);
     let client = this.clientsByToken.get(token);
     if (!client) {
+      // 防资源耗尽：单个 IP 最多持有 MAX_IDENTITIES_PER_IP 个身份。
+      // 换 token 反复 hello 每次都会新建 Client 注入两个 Map（清理仅 24h 一次），
+      // 可被单连接高速膨胀耗尽内存。
+      if (ip) {
+        let sameIp = 0;
+        for (const c of this.clientsByToken.values()) if (c.ip === ip) sameIp++;
+        if (sameIp >= (this.config.maxIdentitiesPerIp ?? 32)) {
+          send({ t: 'error', message: '本机创建的身份过多，请稍后再试', code: 'too-many-identities' });
+          return null;
+        }
+      }
       client = {
         id: randomId(),
         token,
@@ -521,6 +546,7 @@ export class Hub {
         send: null,
         roomCode: null,
         lastSeen: Date.now(),
+        ip,
       };
       this.clientsByToken.set(token, client);
       this.clientsById.set(client.id, client);

@@ -2,6 +2,20 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [0.4.0] - 2026-11-18
+
+### 修复（中危与轻微缺陷销项）
+- **服务端安全加固**：`/api/lan` 默认不再泄露房号/玩法/玩家昵称（需 `PARK_LAN_DETAILS=1` 显式开启）；`/api/profile` 限制 body ≤8KB、文件 ≤2MB、改异步写；WS 增加 Origin 白名单校验（`WS_ALLOWED_ORIGINS`）；`hello` 按 IP 限制身份数（默认 32，`maxIdentitiesPerIp` 可配）；旧协议版本直接拒绝服务。
+- **崩溃丢分**：`uncaughtException`/`unhandledRejection` 时强制 flush，新增每 30s 周期 flush 兜底。
+- **新局闪白**：`case 'room'` 改用 `matchNo` 判定是否保留 game，消除牌桌卸载闪白。
+- **lint**：清零 3 个 error（`npm run check` 恢复通过）。
+- **删除 ROM 残留**：`removeRom` 清理 `files` store 中解包的游戏文件。
+- **定时器泄漏**：App 主题切换、TableShell 表情动画的定时器在卸载时清理。
+- **UON 隐藏信息**：challenge 事件 `guilty` → 公开的 `sustained`。
+
+### 验证
+- typecheck 通过；全量 258 项测试通过（新增 `security.test.ts` 4 项）。
+
 ## [0.3.1] - 2026-11-18
 
 ### 修复（源码分析与销项 · 严重缺陷）

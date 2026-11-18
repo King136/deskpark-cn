@@ -16,7 +16,9 @@ const finish = (ok, msg) => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${msg}`);
   try {
     ws.close();
-  } catch {}
+  } catch {
+    // 连接已关闭时忽略
+  }
   setTimeout(() => process.exit(ok ? 0 : 1), 200);
 };
 

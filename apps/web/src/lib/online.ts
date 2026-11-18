@@ -196,7 +196,11 @@ class OnlineClient {
       }
       case 'room': {
         const sameRoom = this.state.room?.code === m.room.code;
-        const sameMatch = this.state.game && sameRoom;
+        // 新一局时服务端先推 matchNo 已递增的 room、再推 game。
+        // 必须以 matchNo 判定是否保留旧 game，否则一帧内 game.matchNo≠room.matchNo，
+        // 控制器（controller.ts: game.matchNo !== room.matchNo → null）会卸载牌桌导致闪白。
+        const sameMatch =
+          this.state.game && sameRoom && this.state.game.matchNo === m.room.matchNo;
         this.patch({
           room: m.room,
           you: m.you,

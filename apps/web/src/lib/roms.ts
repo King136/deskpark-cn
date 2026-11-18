@@ -170,6 +170,22 @@ export async function removeRom(id: string): Promise<void> {
   }
   await tx(db, STORE, 'readwrite', (s) => s.delete(id));
   await tx(db, 'blobs', 'readwrite', (s) => s.delete(id));
+  // 清理 zip/Cocos 解包到 files store 的文件（键形如 `${id}/<path>`），
+  // 否则删除后仍可经 /__rom/<id>/... 取回，且永久占用配额（L4）。
+  await new Promise<void>((resolve) => {
+    const t = db.transaction(FILES, 'readwrite');
+    const store = t.objectStore(FILES);
+    const req = store.openCursor();
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (!cur) return;
+      const key = String(cur.key);
+      if (key === id || key.startsWith(`${id}/`)) cur.delete();
+      cur.continue();
+    };
+    t.oncomplete = () => resolve();
+    t.onerror = () => resolve();
+  });
 }
 
 /** 取出文件本体：H5 直接用它开新窗口，模拟器用它导出/分享 */
