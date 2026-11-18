@@ -14,6 +14,7 @@ import { LiarArt } from './liar/LiarArt';
 import { CheckersArt } from './checkers/CheckersArt';
 import { LudoArt } from './ludo/LudoArt';
 import { KlondikeArt } from './klondike/KlondikeArt';
+import { MajiangArt } from './majiang/MajiangArt';
 import { BattleArt } from './battle/BattleArt';
 import { MinesArt } from './mines/MinesArt';
 import { HexArt } from './hexisle/art';
@@ -70,6 +71,33 @@ export const GAME_UIS: GameUI[] = [
     people: '2 人',
     badge: '新',
     Art: GomokuArt,
+  },
+  {
+    id: 'mj_guangdong',
+    Board: lazy(() => import('./majiang/MajiangBoard')),
+    tint: ['#24614a', '#1c3a2c'],
+    showcase: [c(1, 'S', 9), c(1, 'D', 3), c(2, 'H', 5)],
+    people: '4 人',
+    badge: '新',
+    Art: MajiangArt,
+  },
+  {
+    id: 'mj_changsha',
+    Board: lazy(() => import('./majiang/MajiangBoard')),
+    tint: ['#6b2f3a', '#1c3a2c'],
+    showcase: [c(1, 'S', 9), c(1, 'D', 3), c(2, 'H', 5)],
+    people: '4 人',
+    badge: '新',
+    Art: MajiangArt,
+  },
+  {
+    id: 'mj_guobiao',
+    Board: lazy(() => import('./majiang/MajiangBoard')),
+    tint: ['#2f4a6b', '#1c3a2c'],
+    showcase: [c(1, 'S', 9), c(1, 'D', 3), c(2, 'H', 5)],
+    people: '4 人',
+    badge: '新',
+    Art: MajiangArt,
   },
   {
     id: 'klondike',

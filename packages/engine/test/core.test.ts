@@ -38,6 +38,9 @@ describe('基础设施', () => {
       'checkers',
       'ludo',
       'klondike',
+      'mj_guangdong',
+      'mj_changsha',
+      'mj_guobiao',
     ]);
     const ddz = listGames()[0];
     expect(normalizeOptions(ddz, { baseScore: 999, rounds: 3 })).toEqual({
