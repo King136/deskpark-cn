@@ -20,12 +20,12 @@ export function Splash() {
     // 开屏是纸白：状态栏也压成同色，冷启动不会出现顶部黑条
     applyBarColor('#F4F1EA');
     document.documentElement.dataset.booting = '1';
-    const hold = window.setTimeout(() => setPhase('out'), 2250);
+    const hold = window.setTimeout(() => setPhase('out'), 2600);
     const done = window.setTimeout(() => {
       setPhase('gone');
       delete document.documentElement.dataset.booting;
       syncBarColor();
-    }, 2720);
+    }, 3080);
     timers.current = [hold, done];
     return () => {
       timers.current.forEach((t) => window.clearTimeout(t));
