@@ -13,6 +13,8 @@ export default function LiarBoard({ ctl }: { ctl: Ctl }) {
   const [count, setCount] = useState((v.bid?.count ?? 0) + 1);
   const [face, setFace] = useState(v.bid?.face ?? 1);
   const myTurn = v.seat !== null && v.turn === v.seat && !v.over;
+  // 每家骰数 × 家数 = 全场骰数，据此还原座位数，用来显示各家状态
+  const seats = v.dice > 0 ? Math.max(1, Math.round(v.total / v.dice)) : 0;
 
   const bid = () => {
     if (!myTurn) return;
@@ -30,10 +32,24 @@ export default function LiarBoard({ ctl }: { ctl: Ctl }) {
         {v.bid ? `上家喊 ${v.bid.count} 个 ${v.bid.face}` : '还没人喊，你先开价'}
       </div>
       <div className="li__dice">
-        {v.mine.map((d, i) => (
-          <span key={i} className="li__die">{d}</span>
+        <span className="li__dice-note">我的 {v.mine.length} 颗</span>
+        <div className="li__dice-row">
+          {v.mine.map((d, i) => (
+            <span key={i} className="li__die">{d}</span>
+          ))}
+        </div>
+      </div>
+      <div className="li__seats">
+        {Array.from({ length: seats }, (_, i) => (
+          <span key={i} className={`li__seat${i === v.seat ? ' is-me' : ''}${v.turn === i && !v.over ? ' is-turn' : ''}`}>
+            <b>{i === v.seat ? '我' : `座${i + 1}`}</b>
+            <small>{v.dice} 颗</small>
+          </span>
         ))}
       </div>
+      <p className="li__hint">
+        {v.bid ? '喊得比上家大：个数更多，或个数相同点数更大' : '先定个数与点数，再点「喊」开价'}
+      </p>
       <div className="li__pick">
         <div className="li__row">
           <button onClick={() => setCount((c) => Math.max(1, c - 1))}>−</button>

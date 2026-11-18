@@ -10,9 +10,60 @@
   gap: 10px;
   min-height: 0;
 }
-.bt__grid { display: grid; gap: 2px; width: var(--btw); grid-auto-rows: 1fr; padding: 6px; border-radius: 8px; background: rgba(16, 26, 34, 0.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
-.bt__grid.is-mine { width: calc(var(--btw) * 0.56); opacity: 0.92; }
-.bt__cell { aspect-ratio: 1; border: 0; border-radius: 3px; background: rgba(255,255,255,0.1); color: var(--felt-ink); font-size: 11px; display: grid; place-items: center; }
+/* 坐标 + 棋盘：grid 2×2，空格位放列标（上）与行标（左） */
+.bt__board {
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr);
+  grid-template-rows: 13px minmax(0, 1fr);
+  gap: 3px;
+  width: var(--btw);
+}
+.bt__board.is-mine {
+  width: calc(var(--btw) * 0.54);
+}
+.bt__axis {
+  display: grid;
+  font-size: 8.5px;
+  line-height: 1;
+  color: var(--felt-ink-3);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.bt__axis span { display: grid; place-items: center; }
+.bt__axis--top { grid-area: 1 / 2; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 2px; }
+.bt__axis--left { grid-area: 2 / 1; grid-template-rows: repeat(var(--n), minmax(0, 1fr)); gap: 2px; }
+.bt__grid {
+  grid-area: 2 / 2;
+  display: grid;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 8px;
+  background: rgba(16, 26, 34, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  grid-auto-rows: 1fr;
+}
+.bt__board.is-mine .bt__grid { opacity: 0.92; }
+.bt__cell {
+  position: relative;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--felt-ink);
+  font-size: 11px;
+  display: grid;
+  place-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 未探明的格子给一个中心小点：全空的 10×10 看不出哪里能点 */
+.bt__cell:not(.miss):not(.hit):not(.ship):not(:disabled)::after {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.24);
+}
+.bt__cell:not(:disabled):active { transform: scale(0.94); }
 .bt__cell.miss { background: rgba(140, 170, 200, 0.36); }
 .bt__cell.hit { background: #b14a3e; }
 .bt__cell.ship { background: rgba(120, 200, 255, 0.3); }

@@ -1,14 +1,35 @@
-.li { display: flex; flex-direction: column; height: 100%; gap: 10px; padding: 4px 6px 12px; }
+/* 竖屏内容天然不足一屏：用 space-between 把空白摊到各段之间，
+   比让骰子区 flex:1 独占再居中更像「排满」（那会在骰子上下各留一大块）。 */
+.li { display: flex; flex-direction: column; height: 100%; gap: 10px; padding: 4px 6px 12px; justify-content: space-between; }
 .li__head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--felt-ink-2); }
 .li__bid { text-align: center; font-size: 15px; color: var(--felt-ink); padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.1); }
-.li__dice { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.li__die { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 8px; background: #f2ead9; color: #3a3226; font-weight: 800; font-size: 19px; }
+/* 骰子是本局主角：让它占满中间的空白，而不是挤在顶部 */
+.li__dice { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.li__dice-note { font-size: 11.5px; letter-spacing: 0.08em; color: var(--felt-ink-3); }
+.li__dice-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.li__die { width: clamp(46px, 13cqw, 58px); height: clamp(46px, 13cqw, 58px); display: grid; place-items: center; border-radius: 10px; background: #f2ead9; color: #3a3226; font-weight: 800; font-size: clamp(20px, 6cqw, 26px); box-shadow: 0 3px 8px rgba(0,0,0,0.28); }
 .li__pick { display: grid; gap: 8px; }
 .li__row { display: flex; gap: 6px; align-items: center; justify-content: center; }
 .li__row button { min-width: 42px; height: 40px; border: 0; border-radius: 9px; background: rgba(255,255,255,0.16); color: var(--felt-ink); font-size: 15px; }
 .li__row button.is-on { background: rgba(255, 200, 120, 0.4); }
 .li__ops { display: flex; gap: 10px; }
 .li__ops > * { flex: 1; }
+.li__seats { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.li__seat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--felt-ink-2);
+  font-size: 11.5px;
+}
+.li__seat b { font-weight: 650; }
+.li__seat small { font-size: 10.5px; opacity: 0.75; }
+.li__seat.is-me { background: rgba(255, 255, 255, 0.14); color: var(--felt-ink); }
+.li__seat.is-turn { box-shadow: inset 0 0 0 1.5px rgba(231, 200, 134, 0.7); }
+.li__hint { margin: 0; text-align: center; font-size: 11.5px; line-height: 1.5; color: var(--felt-ink-3); }
 .li__result { margin: 0; font-size: 12.5px; color: var(--ink-2); }
 .li__show { display: grid; gap: 4px; margin-top: 8px; font-size: 12.5px; color: var(--ink-2); }
 .li-art { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; height: 100%; padding: 10px; background: #3a3030; }

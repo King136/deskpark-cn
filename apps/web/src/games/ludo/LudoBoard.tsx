@@ -13,7 +13,6 @@ export default function LudoBoard({ ctl }: { ctl: Ctl }) {
   const v = ctl.view!;
   const [sel, setSel] = useState(0);
   const myTurn = v.seat !== null && v.turn === v.seat && !v.over;
-  const mine = v.seat !== null ? v.pos[v.seat] : [];
 
   return (
     <div className="ld">
@@ -22,25 +21,27 @@ export default function LudoBoard({ ctl }: { ctl: Ctl }) {
         <span>目标 {v.track} 格</span>
       </div>
       <div className="ld__dice">{v.dice || '?'}</div>
-      <div className="ld__mine">
-        {mine.map((p, i) => (
-          <button key={i} className={`ld__tok${sel === i ? ' is-on' : ''}`} onClick={() => setSel(i)}>
-            <b>{i + 1}</b>
-            <small>{p < 0 ? '机场' : p >= v.track ? '到达' : `${p + 1}格`}</small>
-          </button>
-        ))}
-      </div>
+
       <div className="ld__board">
         <div
           className="ld__track"
-          style={{ gridTemplateColumns: `repeat(${Math.max(6, Math.ceil(Math.sqrt(v.track * 1.4)))}, 1fr)` }}
+          style={{ gridTemplateColumns: `repeat(${Math.max(6, Math.ceil(Math.sqrt(v.track * 1.4)))}, minmax(0, 1fr))` }}
         >
           {Array.from({ length: v.track }, (_, c) => {
             const here = v.pos
               .map((tokens, p) => ({ p, n: tokens.filter((q) => q === c).length }))
               .filter((x) => x.n > 0);
+            const cls = [
+              'ld__cell',
+              c === 0 ? 'is-start' : '',
+              c === v.track - 1 ? 'is-goal' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
             return (
-              <div key={c} className={`ld__cell${c === v.track - 1 ? ' is-goal' : ''}`} title={`第 ${c + 1} 格`}>
+              <div key={c} className={cls} title={`第 ${c + 1} 格`}>
+                {/* 开局时全部棋子在机场，轨道没有棋子。留一个淡序号，用户才看得出这是一条 28 格的跑道 */}
+                <small className="ld__no">{c + 1}</small>
                 {here.map((h) => (
                   <i key={h.p} style={{ background: HUE[h.p] }}>
                     {h.n > 1 ? h.n : ''}
@@ -54,12 +55,47 @@ export default function LudoBoard({ ctl }: { ctl: Ctl }) {
           {v.pos.map((_, p) => (
             <span key={p}>
               <i style={{ background: HUE[p] }} />
-              {p === v.seat ? '我' : NAMES[p] ?? `座${p + 1}`}
+              {p === v.seat ? '我' : (NAMES[p] ?? `座${p + 1}`)}
             </span>
           ))}
           <span>终点 · 第 {v.track} 格</span>
         </div>
       </div>
+
+      {/* 四家进度总览：既填掉轨道下方的空白，也让用户看得到对手走到哪了 */}
+      <div className="ld__players">
+        {v.pos.map((tokens, p) => {
+          const me = p === v.seat;
+          return (
+            <div key={p} className={`ld__prow${me ? ' is-me' : ''}${v.turn === p && !v.over ? ' is-turn' : ''}`}>
+              <i className="ld__pdot" style={{ background: HUE[p] }} />
+              <span className="ld__pname">{me ? '我' : (NAMES[p] ?? `座${p + 1}`)}</span>
+              <div className="ld__ptoks">
+                {tokens.map((q, i) => {
+                  const label = q < 0 ? '机场' : q >= v.track ? '到达' : `${q + 1}格`;
+                  return me ? (
+                    <button
+                      key={i}
+                      className={`ld__ptok${sel === i ? ' is-on' : ''}`}
+                      onClick={() => setSel(i)}
+                      aria-pressed={sel === i}
+                    >
+                      <b>{i + 1}</b>
+                      <small>{label}</small>
+                    </button>
+                  ) : (
+                    <span key={i} className="ld__ptok is-static">
+                      <b>{i + 1}</b>
+                      <small>{label}</small>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="ld__ops">
         <Button disabled={!myTurn || v.dice > 0} onClick={() => { ctl.act({ type: 'roll' }); }}>掷骰</Button>
         <Button variant="primary" disabled={!myTurn || v.dice === 0} onClick={() => {
