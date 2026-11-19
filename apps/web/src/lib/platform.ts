@@ -27,6 +27,19 @@ function makeArea(area: Storage | undefined) {
         /* ignore */
       }
     },
+    /** 列出某个前缀下的所有键（去掉前缀），localStorage 没有前缀查询，只能全量扫 */
+    keys(prefix: string): string[] {
+      const out: string[] = [];
+      try {
+        for (let i = 0; i < (area?.length ?? 0); i++) {
+          const k = area?.key(i);
+          if (k && k.startsWith(prefix)) out.push(k.slice(prefix.length));
+        }
+      } catch {
+        /* ignore */
+      }
+      return out;
+    },
   };
 }
 
@@ -75,13 +88,29 @@ export function isWebview(): boolean {
   return !!cap?.isNativePlatform?.();
 }
 
+/** 本机主机的默认 WebSocket 地址（Android 壳自动开主机） */
+export const LOCAL_HOST_WS = 'ws://127.0.0.1:8787/ws';
+
 export function serverUrl(): string {
   const override = getServerOverride();
   if (override) return normalizeServer(override);
   const fromEnv = import.meta.env.VITE_SERVER_URL as string | undefined;
   if (fromEnv) return fromEnv;
+  // App 壳里页面源是 localhost，连"与页面同源"等于连不上的空端口；
+  // 而 Android 壳默认把本机开成主机（见 Home 的 startHost），所以默认连本机。
+  if (isWebview()) return LOCAL_HOST_WS;
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   return `${proto}://${location.host}/ws`;
+}
+
+/** 当前连接的服务器是谁：大厅状态条、房间页都会讲清楚 */
+export function serverLabel(url = serverUrl()): string {
+  const m = url.match(/^wss?:\/\/([^/?#]+)/);
+  const host = m?.[1] ?? url;
+  // 原生壳里 127.0.0.1 是「本机当主机」；浏览器 localhost 只是测试场景，照实显示
+  if (isWebview() && /^(127\.0\.0\.1|localhost)/.test(host)) return '本机主机';
+  if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(host)) return `局域网 ${host}`;
+  return host;
 }
 
 export function vibrate(ms = 12): void {

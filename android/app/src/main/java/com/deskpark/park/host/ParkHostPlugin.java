@@ -146,6 +146,15 @@ public class ParkHostPlugin extends Plugin implements HostServer.Listener {
     call.resolve();
   }
 
+  /** 网页层同步房间完整快照，供 /api/room 房号预览与接棒使用 */
+  @PluginMethod
+  public void setRoomSnapshot(PluginCall call) {
+    String code = call.getString("code", "");
+    String json = call.getString("json", "");
+    if (code != null && !code.isEmpty()) HostRuntime.setSnapshot(code, json);
+    call.resolve();
+  }
+
   private android.media.SoundPool pool;
   private final java.util.Map<String, Integer> clipIds = new java.util.HashMap<>();
 

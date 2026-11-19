@@ -83,6 +83,26 @@
   color: var(--felt-ink);
 }
 
+/* 服务器与局域网提示：房间在谁那儿、朋友怎么进来 */
+.room__via {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.66);
+  text-align: center;
+}
+.room__via b {
+  color: rgba(255, 255, 255, 0.92);
+  font-variant-numeric: tabular-nums;
+}
+.room__via--host b {
+  color: #123;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
 .room__seats {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
@@ -233,6 +253,16 @@
 .room-state h2 {
   color: var(--ink);
   font-size: 20px;
+}
+.room-state__note {
+  max-width: 34em;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+.room-state__ops {
+  display: flex;
+  gap: 10px;
 }
 .spinner {
   width: 28px;

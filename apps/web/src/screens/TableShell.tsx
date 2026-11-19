@@ -34,6 +34,9 @@ import {
   onHostChrome,
 } from '../lib/host';
 import { online, useOnline } from '../lib/online';
+import { currentHost, hostAvailable, localWsUrl, startHost } from '../lib/localHost';
+import { canTakeover, seedHostPersist } from '../lib/takeover';
+import { setServerOverride } from '../lib/platform';
 import { playSound } from '../lib/sound';
 import { settings } from '../lib/store';
 import { SettingsSheet } from './SettingsSheet';
@@ -395,6 +398,27 @@ export function TableShell({
   const offline = ctl.mode === 'online' && net.status !== 'open';
   const emotes = ctl.mode === 'online' ? net.emotes.filter((e) => Date.now() - e.at < 3500) : [];
 
+  /** 自接棒：房主设备下线后，把牌局连人一起搬到本机来当主机 */
+  const takeOver = async () => {
+    const code = net.room?.code;
+    if (!code) return;
+    if (!canTakeover(code)) {
+      toast('本机没有这间房的快照，接不了棒；让打过这局的设备来接管', 'error');
+      return;
+    }
+    seedHostPersist(code);
+    try {
+      if (!currentHost().running) await startHost(8787);
+    } catch (e) {
+      toast(`开主机失败：${(e as Error).message}`, 'error');
+      return;
+    }
+    setServerOverride(localWsUrl(currentHost().port));
+    toast(`牌局已接到本机，房号 ${code} 不变，其他设备会自动连过来`);
+    online.reconnectNow();
+    online.send({ t: 'join', code });
+  };
+
   return (
     <div
       className={`table ${landscape ? 'is-landscape' : 'is-portrait'} ${
@@ -447,8 +471,34 @@ export function TableShell({
         )}
         {offline && (
           <div className="net-banner">
-            <WifiOff size={15} /> {net.status === 'offline' ? '网络已断开' : '正在重新连接…'}
-            {net.status === 'offline' && <button onClick={() => online.reconnectNow()}>重试</button>}
+            <WifiOff size={15} />{' '}
+            {net.status === 'offline' ? '与房主的连接断了' : '正在重新连接…'}
+            {net.status === 'offline' && net.rescue && (
+              <em className="net-banner__rescue">
+                {net.rescue.target
+                  ? `找到接棒主机 ${net.rescue.target}，正在切过去…`
+                  : '正在局域网里寻找持有这间房的主机…'}
+              </em>
+            )}
+            {net.status === 'offline' && (
+              <>
+                <button onClick={() => online.reconnectNow()}>重试</button>
+                {hostAvailable() && net.room && (
+                  <button
+                    className="net-banner__takeover"
+                    onClick={() => void takeOver()}
+                    disabled={!canTakeover(net.room!.code)}
+                    title={
+                      canTakeover(net.room!.code)
+                        ? '把牌局接到本机继续当主机'
+                        : '本机没有这间房的快照'
+                    }
+                  >
+                    接管牌局
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
 

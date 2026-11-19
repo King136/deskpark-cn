@@ -72,6 +72,10 @@ export interface ServerConfig {
   scores?: ScoreSink;
   /** 房间落盘；不传就纯内存（网页内主机默认走内存） */
   persist?: RoomPersist;
+  /** 房间快照写盘后的回调：原生主机借此把快照推给 HTTP 层（/api/room） */
+  onPersist?: (code: string, data: Record<string, unknown>) => void;
+  /** 对局中快照的写盘节流（默认 10 秒；测试里调小） */
+  playPersistMs?: number;
   log?: (...args: unknown[]) => void;
 }
 
@@ -125,6 +129,8 @@ class Room {
   matchNo = 0;
   lastActive = Date.now();
   chat: ChatMessage[] = [];
+  /** 牌局是否在跑（接棒恢复的房间，要等第一个成员上线才开跑） */
+  private playLive = false;
   private chatSeq = 0;
   private unsubscribe: (() => void) | null = null;
   /** 本次进房以来每个座位的娱乐分累计（含电脑，方便对上账） */
@@ -193,18 +199,35 @@ class Room {
       ?.send?.({ t: 'chatHistory', code: this.code, messages: this.chat });
   }
 
-  /** 落盘用的最小状态：不带 playerId，重启/换机后由玩家用房号重新认领座位 */
+  /**
+   * 房间完整快照（落盘 / 接棒用）：座位轮廓、选项、娱乐分，
+   * 对局进行中时连权威牌局状态一起带走。
+   * 不带 playerId：玩家凭房号 + 自己的 token 重新认领座位。
+   */
   diskState(): Record<string, unknown> {
     const s = this.snapshot();
-    return {
+    const pack: Record<string, unknown> = {
       code: this.code,
       gameId: this.def.meta.id,
       options: this.options,
       seats: s.seats.map(({ kind, name, avatar }) => ({ kind, name, avatar })),
       sessionScores: this.sessionScores,
       matchNo: this.matchNo,
+      status: this.status,
       savedAt: Date.now(),
     };
+    if (this.table && this.status === 'playing' && !this.table.isOver()) {
+      pack.play = {
+        state: this.table.state,
+        seats: this.table.seats.map((t) => ({
+          name: t.name,
+          avatar: t.avatar,
+          isBot: t.isBot,
+          auto: !!t.auto,
+        })),
+      };
+    }
+    return pack;
   }
 
   broadcastRoom(): void {
@@ -334,7 +357,21 @@ class Room {
     this.matchNo++;
     this.status = 'playing';
     this.lastMatch = null;
-    this.unsubscribe = this.table.subscribe(() => {
+    this.watchTable();
+    this.playLive = true;
+    this.table.start();
+    this.hub.touch(this);
+    this.broadcastRoom();
+    this.broadcastGame();
+    return null;
+  }
+
+  /** 订阅牌桌变化：结算 + 广播 + 快照节流写盘 */
+  private watchTable(): void {
+    const t = this.table;
+    if (!t) return;
+    this.unsubscribe?.();
+    this.unsubscribe = t.subscribe(() => {
       this.lastActive = Date.now();
       if (this.table?.isOver() && this.status === 'playing') {
         this.status = 'finished';
@@ -343,14 +380,50 @@ class Room {
         this.broadcastRoom();
       }
       this.broadcastGame();
+      this.hub.touchPlay(this);
     });
+  }
+
+  /**
+   * 从快照恢复进行中的牌局（接棒）。状态损坏/已结束时静默忽略。
+   * 不立即开跑：等第一个成员上线（hello/join → ensurePlay）再调度，
+   * 否则空房间里电脑会自顾自把牌打完。
+   */
+  restorePlay(state: unknown, meta: { name?: string; avatar?: string; isBot?: boolean; auto?: boolean }[]): void {
+    if (this.table) return;
+    try {
+      if (this.def.isOver(state) || !this.def.activeSeats(state)) return;
+      this.def.view(state, 0);
+    } catch {
+      return;
+    }
+    const tableSeats: TableSeat[] = this.seats.map((s, i) => ({
+      name: meta[i]?.name ?? s.name ?? '玩家',
+      avatar: meta[i]?.avatar ?? s.avatar,
+      isBot: meta[i]?.isBot ?? s.kind === 'bot',
+      auto: !!meta[i]?.auto,
+      // 真人先按离线算，重连后 setConnected 置回
+      connected: (meta[i]?.isBot ?? s.kind === 'bot') ? true : false,
+    }));
+    this.table = new Table(this.def, tableSeats, this.options, {
+      humanTimeoutMs: Math.max(this.hub.config.turnTimeoutMs, this.def.meta.turnTimeoutMs ?? 0),
+      initialState: state,
+      onError: (e) => this.hub.config.log?.('[table]', this.code, e),
+    });
+    this.status = 'playing';
+    this.watchTable();
+  }
+
+  /** 有成员上线了：接棒恢复的房间此刻开跑 */
+  ensurePlay(): void {
+    if (!this.table || this.playLive || this.status !== 'playing') return;
+    this.playLive = true;
     this.table.start();
-    this.broadcastRoom();
     this.broadcastGame();
-    return null;
   }
 
   dispose(): void {
+    this.playLive = false;
     this.unsubscribe?.();
     this.table?.dispose();
     this.table = null;
@@ -364,15 +437,18 @@ export class Hub {
   rooms = new Map<string, Room>();
   /** 房间落盘定时器：同一间房 1 秒内多次变化只写一次 */
   private saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** 牌局快照定时器：对局中每 10 秒最多写一次 */
+  private playTimers = new Map<string, { t: ReturnType<typeof setTimeout>; room: Room }>();
 
   constructor(readonly config: ServerConfig = DEFAULT_CONFIG) {}
 
   /* ---------------- 房间落盘 / 接棒 ----------------
-   * 服务端把每间房的座位、选项、娱乐分写到 `<PARK_DATA_DIR>/rooms/<房号>.json`。
-   * 进程重启、或换一台设备当主机（同一个数据目录）时，房间还在，玩家凭房号就能重新坐下。
+   * 服务端把每间房的座位、选项、娱乐分（对局中连权威状态一起）写到 `<PARK_DATA_DIR>/rooms/<房号>.json`。
+   * 进程重启、或换一台设备当主机（同一个数据目录）时，房间还在，玩家凭房号就能重新坐下；
+   * 对局进行中的房间恢复后等第一个成员上线再继续打。
    */
   touch(room: Room): void {
-    if (!this.config.persist) return;
+    if (!this.config.persist && !this.config.onPersist) return;
     const prev = this.saveTimers.get(room.code);
     if (prev) clearTimeout(prev);
     this.saveTimers.set(
@@ -384,12 +460,36 @@ export class Hub {
     );
   }
 
+  /** 牌局中的节流写盘：默认每 10 秒最多一次，把进行中的权威状态带走 */
+  touchPlay(room: Room): void {
+    if (room.status !== 'playing' || !room.table) return;
+    if (!this.config.persist && !this.config.onPersist) return;
+    if (this.playTimers.has(room.code)) return; // 已排期，等它到点
+    const entry = {
+      t: setTimeout(() => {
+        this.playTimers.delete(room.code);
+        this.writeRoom(room);
+      }, this.config.playPersistMs ?? 10_000),
+      room,
+    };
+    this.playTimers.set(room.code, entry);
+  }
+
   private writeRoom(room: Room): void {
     try {
-      this.config.persist?.write(room.code, room.diskState());
+      const data = room.diskState();
+      this.config.persist?.write(room.code, data);
+      this.config.onPersist?.(room.code, data);
     } catch (e) {
       this.config.log?.('[room] persist failed', room.code, e);
     }
+  }
+
+  /** 房间完整快照：/api/room?full=1 用（接棒缓存）。内存里没有就从盘上接。 */
+  exportRoom(code: string): Record<string, unknown> | undefined {
+    const r = this.rooms.get(code) ?? this.adoptRoom(code);
+    // 不 ensurePlay：只是导出快照，不能让电脑在没人看的时候把牌打完
+    return r ? r.diskState() : undefined;
   }
 
   /** 从盘上接回一间房；没有就返回 undefined */
@@ -413,12 +513,33 @@ export class Hub {
     const options =
       raw?.options && typeof raw.options === 'object' ? (raw.options as Record<string, unknown>) : {};
     const r = new Room(this, code, def, normalizeOptions(def, options), seatCount, '');
+    // 恢复座位轮廓（电脑位、名字、形象）：接棒后大家还坐原来的位置，不会错位
+    r.seats = seats.slice(0, seatCount).map((s) => {
+      const x = (s ?? {}) as { kind?: unknown; name?: unknown; avatar?: unknown };
+      return {
+        kind: x.kind === 'human' || x.kind === 'bot' ? x.kind : 'empty',
+        name: typeof x.name === 'string' ? x.name : undefined,
+        avatar: typeof x.avatar === 'string' ? x.avatar : undefined,
+        connected: false,
+      } as SeatState;
+    });
+    while (r.seats.length < seatCount) r.seats.push({ kind: 'empty' });
     const scores = Array.isArray(raw?.sessionScores) ? (raw.sessionScores as unknown[]) : [];
     r.sessionScores = Array.from({ length: seatCount }, (_, i) => Number(scores[i]) || 0);
     r.matchNo = Number(raw?.matchNo) || 0;
     r.lastActive = Date.now();
+    // 对局进行中：连牌一起接回来（等第一个成员上线 ensurePlay 再开跑）
+    if (raw?.status === 'playing' && raw.play && typeof raw.play === 'object') {
+      const play = raw.play as { state?: unknown; seats?: unknown };
+      if (play.state !== undefined && Array.isArray(play.seats)) {
+        r.restorePlay(
+          play.state,
+          play.seats as { name?: string; avatar?: string; isBot?: boolean; auto?: boolean }[],
+        );
+      }
+    }
     this.rooms.set(code, r);
-    this.config.log?.('[room] adopted', code, def.meta.id);
+    this.config.log?.('[room] adopted', code, def.meta.id, r.status);
     return r;
   }
 
@@ -437,6 +558,9 @@ export class Hub {
     const t = this.saveTimers.get(code);
     if (t) clearTimeout(t);
     this.saveTimers.delete(code);
+    const pt = this.playTimers.get(code);
+    if (pt) clearTimeout(pt.t);
+    this.playTimers.delete(code);
     try {
       this.config.persist?.remove(code);
     } catch {
@@ -571,6 +695,7 @@ export class Hub {
         delete room.seats[seat].disconnectedAt;
         room.table?.setConnected(seat, true);
       }
+      room.ensurePlay();
       room.broadcastRoom();
       room.sendGame(client.id);
       room.sendChatHistory(client.id);
@@ -588,6 +713,26 @@ export class Hub {
 
   private error(c: Client, message: string, code?: string): void {
     c.send?.({ t: 'error', message, ...(code ? { code } : {}) });
+  }
+
+  /**
+   * 座位认领：接棒恢复的房间里，真人座位的主人是"无名氏"（playerId 不落盘）。
+   * 同名玩家进房时优先坐回原位，座位表与牌局都不漂移；名字对不上就当新玩家。
+   */
+  private reclaimSeat(r: Room, c: Client): boolean {
+    for (let i = 0; i < r.seats.length; i++) {
+      const s = r.seats[i];
+      if (s.kind !== 'human' || s.playerId) continue;
+      if (s.name && s.name !== c.name) continue;
+      r.seats[i] = humanSeat(c);
+      r.spectators.delete(c.id);
+      if (r.table && r.table.seats[i]) {
+        Object.assign(r.table.seats[i], { name: c.name, avatar: c.avatar, isBot: false });
+        r.table.setConnected(i, true);
+      }
+      return true;
+    }
+    return false;
   }
 
   private handle(c: Client, msg: ClientMessage): void {
@@ -658,11 +803,15 @@ export class Hub {
         c.roomCode = code;
         const isNew = r.seatOf(c.id) === null && !r.spectators.has(c.id);
         if (isNew) {
-          const empty = r.status === 'waiting' ? r.seats.findIndex((s) => s.kind === 'empty') : -1;
-          if (empty >= 0) r.seats[empty] = humanSeat(c);
-          else r.spectators.add(c.id);
+          // 接棒恢复的房间：同名玩家先坐回原位（进行中的牌局不认空位）
+          if (!this.reclaimSeat(r, c)) {
+            const empty = r.status === 'waiting' ? r.seats.findIndex((s) => s.kind === 'empty') : -1;
+            if (empty >= 0) r.seats[empty] = humanSeat(c);
+            else r.spectators.add(c.id);
+          }
         }
         r.lastActive = Date.now();
+        r.ensurePlay();
         r.broadcastRoom();
         r.sendGame(c.id);
         if (isNew) r.system(`${c.name} 加入了房间${r.seatOf(c.id) === null ? '（观战）' : ''}`);
@@ -887,6 +1036,18 @@ export class Hub {
   }
 
   dispose(): void {
+    for (const t of this.saveTimers.values()) clearTimeout(t);
+    // 优雅停机：把节流窗口里还没落盘的牌局快照立刻写下去，别丢最后 ≤10 秒的对局
+    for (const { t, room } of this.playTimers.values()) {
+      clearTimeout(t);
+      try {
+        this.writeRoom(room);
+      } catch {
+        /* 写不进就算了 */
+      }
+    }
+    this.saveTimers.clear();
+    this.playTimers.clear();
     for (const r of this.rooms.values()) r.dispose();
     this.rooms.clear();
   }

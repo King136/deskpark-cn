@@ -8,17 +8,41 @@ import { Button, IconButton, Sheet, toast } from '../components/ui';
 import { getGameUI } from '../games';
 import { useOnlineController } from '../lib/controller';
 import { online, useOnline } from '../lib/online';
-import { copyText } from '../lib/platform';
+import { currentHost, hostAvailable, subscribeHost } from '../lib/localHost';
+import { httpOrigin } from '../lib/discover';
+import { copyText, serverLabel, serverUrl, setServerOverride } from '../lib/platform';
 import { inviteText, navigate } from '../lib/router';
 import { profile } from '../lib/store';
+import { fetchRoomPack, savePack } from '../lib/takeover';
 import { OptionsForm, PlayerCountField } from './SetupSheet';
 import { TableShell } from './TableShell';
 import './room.css';
+
+/**
+ * 房间快照缓存：每 15 秒向主机要一份完整快照存到本机。
+ * 房主设备下线后，任何成员设备都能凭这份缓存把牌局接过来（自接棒）。
+ */
+function useRoomPackCache(code: string | null, status: string) {
+  useEffect(() => {
+    if (!code || status !== 'open') return;
+    const origin = httpOrigin(serverUrl());
+    const pull = () => {
+      void fetchRoomPack(origin, code).then((pack) => {
+        if (pack) savePack(pack);
+      });
+    };
+    pull();
+    const timer = setInterval(pull, 15_000);
+    return () => clearInterval(timer);
+  }, [code, status]);
+}
 
 export function OnlineRoom({ code }: { code: string }) {
   const net = useOnline();
   const ctl = useOnlineController();
   const creating = code === 'NEW';
+  const roomCode = net.room?.code ?? (creating ? null : code);
+  useRoomPackCache(roomCode, net.status);
 
   useEffect(() => {
     online.connect();
@@ -33,12 +57,13 @@ export function OnlineRoom({ code }: { code: string }) {
   const notFound = !room && net.error && /不存在/.test(net.error.message);
 
   if (!room) {
+    const offline = net.status === 'offline';
     return (
       <div className="room-state">
         {notFound ? (
           <>
             <h2>房间 {code} 不存在</h2>
-            <p>可能已经解散，或房间号输入有误。</p>
+            <p>可能已经解散，或房间号输入有误。确认房主还在同一 Wi-Fi、或让房主重开一次。</p>
             <Button variant="primary" onClick={() => navigate('/')}>
               返回大厅
             </Button>
@@ -47,18 +72,29 @@ export function OnlineRoom({ code }: { code: string }) {
           <>
             <div className="spinner" />
             <p>
-              {net.status === 'offline'
-                ? '无法连接服务器'
-                : creating
-                  ? '正在创建房间…'
-                  : `正在进入房间 ${code}…`}
+              {offline
+                ? `连不上 ${serverLabel()}，房间 ${code} 还在这台设备的名下`
+                : net.status === 'reconnecting'
+                  ? '正在重新连接…'
+                  : creating
+                    ? '正在创建房间…'
+                    : `正在进入房间 ${code}…`}
             </p>
-            {net.status === 'offline' && (
-              <Button onClick={() => online.reconnectNow()}>重试</Button>
+            {offline && (
+              <p className="room-state__note">
+                {net.rescue
+                  ? net.rescue.target
+                    ? `已在局域网找到接棒主机 ${net.rescue.target}，正在切过去…`
+                    : '正在局域网里寻找持有这间房的主机…'
+                  : '如果是房主的设备下线了，同一 Wi-Fi 里任何装了闲亭的设备都可以在牌桌上「接管牌局」。'}
+              </p>
             )}
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              返回大厅
-            </Button>
+            <div className="room-state__ops">
+              {offline && <Button onClick={() => online.reconnectNow()}>重试</Button>}
+              <Button variant="ghost" onClick={() => navigate('/')}>
+                返回大厅
+              </Button>
+            </div>
           </>
         )}
       </div>
@@ -87,6 +123,9 @@ function WaitingRoom() {
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
   /** 浏览器不允许自动复制时，把内容放进输入框让玩家手动复制 */
   const [manual, setManual] = useState<{ what: 'code' | 'link'; text: string } | null>(null);
+  /** 本机正在当主机：把朋友该填的地址亮出来 */
+  const [host, setHost] = useState(() => currentHost());
+  useEffect(() => subscribeHost(setHost), []);
   const isHost = you.isHost;
   const filled = room.seats.filter((s) => s.kind !== 'empty').length;
 
@@ -145,6 +184,14 @@ function WaitingRoom() {
             {copied === 'link' ? <Check size={14} /> : <Link2 size={14} />} 复制邀请链接
           </Button>
         </div>
+        <p className="room__via">
+          在 <b>{serverLabel()}</b> 上 · 同一 Wi-Fi 的朋友在大厅输入房间号即可自动找到这桌
+        </p>
+        {host.running && host.addresses[0] && (
+          <p className="room__via room__via--host">
+            本机正在当主机，朋友手填地址可用 <b>{host.addresses[0]}</b>
+          </p>
+        )}
       </section>
 
       <section className="room__seats">

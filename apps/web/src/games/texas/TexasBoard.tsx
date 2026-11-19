@@ -9,6 +9,7 @@ import { useFigureLookup } from '../../lib/characters';
 import { formatChips, signed } from '../../lib/format';
 import { callout } from '../../lib/callout';
 import { playSound } from '../../lib/sound';
+import { useNarrow } from '../../lib/media';
 import { useCompact, useTurnCue } from '../shared/trick';
 import './texas.css';
 
@@ -51,6 +52,7 @@ export default function TexasBoard({ ctl }: { ctl: Ctl }) {
   const myTurn = !spectator && !!v.me;
   const [raiseOpen, setRaiseOpen] = useState(false);
   const compact = useCompact();
+  const narrow = useNarrow();
   const figureOf = useFigureLookup();
   const [raiseTo, setRaiseTo] = useState(0);
   useTurnCue(myTurn);
@@ -89,10 +91,12 @@ export default function TexasBoard({ ctl }: { ctl: Ctl }) {
   }, [mine.hole, v.board]);
 
   // 座位分布在椭圆上，自己在正下方，顺时针为下家
+  // 窄屏收小横向半径：座位药丸 ~143px 宽，390px 屏上 47% 会左右出血
+  const rx = narrow ? 37 : 47;
   const pos = (s: number) => {
     const k = (s - me + n) % n;
     const a = ((90 + (k * 360) / n) * Math.PI) / 180;
-    return { x: 50 + 47 * Math.cos(a), y: 50 + 44 * Math.sin(a), a };
+    return { x: 50 + rx * Math.cos(a), y: 50 + 44 * Math.sin(a), a };
   };
 
   const opts = v.me;

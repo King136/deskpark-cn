@@ -35,6 +35,15 @@ public final class HostRuntime {
         if (server != null) server.setLan(json);
     }
 
+    /** 网页层把房间完整快照同步过来，/api/room 才能提供房号预览与接棒快照 */
+    public static synchronized void setSnapshot(String code, String json) {
+        if (server != null) server.setSnapshot(code, json);
+    }
+
+    public static synchronized void clearSnapshots() {
+        if (server != null) server.clearSnapshots();
+    }
+
     public static synchronized java.util.List<String> addresses() {
         return HostServer.addresses(port());
     }

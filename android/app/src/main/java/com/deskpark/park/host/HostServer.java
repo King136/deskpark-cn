@@ -40,6 +40,7 @@ public class HostServer {
     private final int port;
     private final Listener listener;
     private final Map<String, Conn> conns = new ConcurrentHashMap<>();
+    private final Map<String, String> snapshots = new ConcurrentHashMap<>();
     private final AtomicLong seq = new AtomicLong();
     private volatile boolean running;
     private ServerSocket server;
@@ -69,6 +70,17 @@ public class HostServer {
         if (json != null && !json.isEmpty()) lanJson = json;
     }
 
+    /** 网页层把房间完整快照写进来（Hub.diskState 同构），/api/room 提供预览与接棒 */
+    public void setSnapshot(String code, String json) {
+        if (code == null || code.isEmpty()) return;
+        if (json == null || json.isEmpty()) snapshots.remove(code);
+        else snapshots.put(code, json);
+    }
+
+    public void clearSnapshots() {
+        snapshots.clear();
+    }
+
     public void stop() {
         running = false;
         try {
@@ -77,6 +89,7 @@ public class HostServer {
         }
         for (Conn c : conns.values()) c.close();
         conns.clear();
+        snapshots.clear();
     }
 
     public boolean send(String session, String text) {
@@ -172,8 +185,18 @@ public class HostServer {
         /** 同一端口兼顾 HTTP：给浏览器/其它手机一个可探测的应答 */
         private void serveHttp(String requestLine, String head) throws IOException {
             String path = "/";
+            String query = "";
             String[] parts = requestLine.split(" ");
-            if (parts.length >= 2) path = parts[1];
+            if (parts.length >= 2) {
+                String target = parts[1];
+                int q = target.indexOf('?');
+                if (q >= 0) {
+                    path = target.substring(0, q);
+                    query = target.substring(q + 1);
+                } else {
+                    path = target;
+                }
+            }
             String cors = "Access-Control-Allow-Origin: *\r\n"
                     + "Access-Control-Allow-Headers: *\r\n"
                     + "Cache-Control: no-store\r\n"
@@ -181,6 +204,28 @@ public class HostServer {
             if (path.startsWith("/api/lan")) {
                 byte[] body = lanJson.getBytes(StandardCharsets.UTF_8);
                 out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\n"
+                        + cors + "Content-Length: " + body.length + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                out.write(body);
+            } else if (path.startsWith("/api/room")) {
+                // 房号预览与接棒快照：知道房号是唯一凭据
+                String code = queryParams(query).get("code");
+                byte[] body;
+                int status;
+                if (code == null || code.isEmpty()) {
+                    status = 400;
+                    body = "{\"error\":\"missing code\"}".getBytes(StandardCharsets.UTF_8);
+                } else {
+                    String snap = snapshots.get(code.toUpperCase());
+                    if (snap == null) {
+                        status = 404;
+                        body = "{\"error\":\"no-room\"}".getBytes(StandardCharsets.UTF_8);
+                    } else {
+                        status = 200;
+                        body = snap.getBytes(StandardCharsets.UTF_8);
+                    }
+                }
+                out.write(("HTTP/1.1 " + status + (status == 200 ? " OK" : " Not Found")
+                        + "\r\nContent-Type: application/json; charset=utf-8\r\n"
                         + cors + "Content-Length: " + body.length + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
                 out.write(body);
             } else if (path.equals("/health")) {
@@ -200,14 +245,34 @@ public class HostServer {
             out.flush();
         }
 
+        /** 最小 query 解析：?code=AB12&full=1 */
+        private static java.util.Map<String, String> queryParams(String query) {
+            java.util.Map<String, String> map = new java.util.HashMap<>();
+            if (query == null || query.isEmpty()) return map;
+            for (String pair : query.split("&")) {
+                int eq = pair.indexOf('=');
+                if (eq <= 0) continue;
+                try {
+                    map.put(pair.substring(0, eq),
+                            java.net.URLDecoder.decode(pair.substring(eq + 1), "UTF-8"));
+                } catch (Exception ignored) {
+                }
+            }
+            return map;
+        }
+
         private String readAsciiUntilBlank() throws IOException {
+            // 逐字节读到空行（\r\n\r\n）。缓存头最多几 KB，
+            // 用 ByteArrayOutputStream 直接写、只在尾部比对，避免每读一个字节就整体拷贝。
             ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            int b1 = -1, b2 = -1, b3 = -1;
             int c;
             while ((c = in.read()) != -1) {
                 buf.write(c);
-                byte[] a = buf.toByteArray();
-                int n = a.length;
-                if (n >= 4 && a[n - 1] == '\n' && a[n - 2] == '\r' && a[n - 3] == '\n' && a[n - 4] == '\r') break;
+                if (b3 == '\r' && b2 == '\n' && b1 == '\r' && c == '\n') break;
+                b3 = b2;
+                b2 = b1;
+                b1 = c;
             }
             return new String(buf.toByteArray(), StandardCharsets.UTF_8);
         }

@@ -1,4 +1,5 @@
 import type { ServerMessage } from '@park/protocol';
+import { normalizeRoomCode } from '@park/protocol';
 import { appendFile, createReadStream, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
@@ -217,6 +218,7 @@ export function startServer(opts: StartOptions) {
       // 局域网自发现。安全加固：默认只暴露"这台机器可开房"这一事实，
       // 不泄露房号/玩法/玩家昵称——否则任何局域网访客可枚举房号并尝试加入/抢房主。
       // 如需房间列表（可信内网调试），显式设置 PARK_LAN_DETAILS=1。
+      // CORS 打开：App 壳页面（http://localhost）与跨主机浏览器都要能探测到这台主机。
       const details = process.env.PARK_LAN_DETAILS === '1';
       const lan: Record<string, unknown> = {
         app: 'deskpark',
@@ -235,8 +237,48 @@ export function startServer(opts: StartOptions) {
           : [],
         roomCount: hub.rooms.size,
       };
-      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      res.writeHead(200, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+        'access-control-allow-origin': '*',
+      });
       res.end(JSON.stringify(lan));
+      return;
+    }
+    if (url.pathname === '/api/room') {
+      // 房间预览 / 快照：知道房号是唯一凭据。跨源放开（App 壳、局域网浏览器都要问）。
+      const code = normalizeRoomCode(url.searchParams.get('code') ?? '');
+      const full = url.searchParams.get('full') === '1';
+      const headers = {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+        'access-control-allow-origin': '*',
+      };
+      if (!code) {
+        res.writeHead(400, headers).end('{"error":"missing code"}');
+        return;
+      }
+      const room = hub.rooms.get(code) ?? hub.adoptRoom(code);
+      if (!room) {
+        res.writeHead(404, headers).end('{"error":"no-room"}');
+        return;
+      }
+      const gameId = room.def.meta.id;
+      const seats = room.seats.length;
+      const humans = room.seats.filter((s) => s.kind === 'human').length;
+      const body: Record<string, unknown> = {
+        code,
+        gameId,
+        seats,
+        humans,
+        status: room.status,
+        spectators: room.spectators.size,
+        // 昵称打码：预览给大厅卡片用，不泄露全名
+        players: room.seats.map((s) => (s.kind === 'human' ? maskName(s.name) : null)),
+      };
+      if (full) body.pack = hub.exportRoom(code);
+      res.writeHead(200, headers);
+      res.end(JSON.stringify(body));
       return;
     }
     if (url.pathname === '/api/library') {
@@ -291,7 +333,10 @@ export function startServer(opts: StartOptions) {
       return;
     }
     if (req.url === '/healthz') {
-      res.writeHead(200, { 'content-type': 'application/json' });
+      res.writeHead(200, {
+        'content-type': 'application/json',
+        'access-control-allow-origin': '*',
+      });
       res.end(JSON.stringify({ ok: true, ...hub.stats() }));
       return;
     }
@@ -323,9 +368,20 @@ export function startServer(opts: StartOptions) {
   // 兼容：无 Origin 的客户端（原生 App/脚本/同源）放行；可用 WS_ALLOWED_ORIGINS 覆盖。
   const allowedOrigins = (process.env.WS_ALLOWED_ORIGINS ?? '')
     .split(',').map((s) => s.trim()).filter(Boolean);
+  // 原生壳（Capacitor / 鸿蒙 WebView / Cordova）的页面源是 localhost，
+  // 连局域网服务器是正当需求，不是跨站攻击。
+  const NATIVE_ORIGINS = new Set([
+    'http://localhost',
+    'https://localhost',
+    'http://127.0.0.1',
+    'https://127.0.0.1',
+    'capacitor://localhost',
+    'ionic://localhost',
+  ]);
   const originAllowed = (origin: string | undefined, host: string | undefined): boolean => {
     if (!origin) return true; // 非浏览器客户端
     if (allowedOrigins.includes(origin)) return true;
+    if (NATIVE_ORIGINS.has(origin)) return true;
     try {
       const u = new URL(origin);
       if (host && u.host === host) return true; // 同源

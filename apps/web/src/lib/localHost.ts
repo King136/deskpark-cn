@@ -18,6 +18,8 @@ interface ParkHostPlugin {
   send(options: { session: string; data: string }): Promise<void>;
   status(): Promise<{ running: boolean; port: number; addresses: string[] }>;
   setLan(options: { json: string }): Promise<void>;
+  /** 房间快照回推：原生 HTTP 层用它实现 /api/room（房号预览 + 接棒快照） */
+  setRoomSnapshot(options: { code: string; json: string }): Promise<void>;
   addListener(
     event: 'hostEvent',
     cb: (e: HostEvent) => void,
@@ -60,11 +62,34 @@ export function subscribeHost(fn: (s: HostState) => void): () => void {
   return () => subs.delete(fn);
 }
 
+/** 昵称打码：与线上 /api/lan 一致，房号预览不泄露全名 */
+function maskName(name: string | undefined): string | null {
+  if (!name) return null;
+  if (name.length <= 2) return name[0] ?? '';
+  return name[0] + '*'.repeat(Math.min(name.length - 2, 4)) + name[name.length - 1];
+}
+
 export async function startHost(port = 8787): Promise<HostState> {
   if (core) return state;
-  core = new HostCore((session, text) => {
-    void Native.send({ session, data: text }).catch(() => {});
-  });
+  core = new HostCore(
+    (session, text) => {
+      void Native.send({ session, data: text }).catch(() => {});
+    },
+    (code, data) => {
+      // 快照 → /api/room 响应同构：预览字段 + 完整包（接棒缓存用）
+      const seats = Array.isArray(data.seats) ? (data.seats as { kind?: string; name?: string }[]) : [];
+      const payload = {
+        code,
+        gameId: data.gameId,
+        seats: seats.length,
+        humans: seats.filter((s) => s?.kind === 'human').length,
+        status: data.status ?? 'waiting',
+        players: seats.map((s) => (s?.kind === 'human' ? maskName(s.name) : null)),
+        pack: data,
+      };
+      void Native.setRoomSnapshot({ code, json: JSON.stringify(payload) }).catch(() => {});
+    },
+  );
   listener = await Native.addListener('hostEvent', (e) => {
     if (e.type === 'message' && e.session && typeof e.data === 'string') core?.message(e.session, e.data);
     else if (e.type === 'open' && e.session) core?.open(e.session);

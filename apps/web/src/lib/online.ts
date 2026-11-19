@@ -9,7 +9,8 @@ import type {
 } from '@park/protocol';
 import { CHAT_HISTORY, PROTOCOL_VERSION } from '@park/protocol';
 import { useSyncExternalStore } from 'react';
-import { serverUrl } from './platform';
+import { findRoomHost } from './discover';
+import { normalizeServer, serverUrl, setServerOverride } from './platform';
 import { profile } from './store';
 
 export type OnlineStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'offline';
@@ -20,6 +21,15 @@ export interface Emote {
   seat: number;
   emote: string;
   name: string;
+  at: number;
+}
+
+/** 断线自救状态：牌桌上展示「正在局域网找接棒的设备」 */
+export interface RescueState {
+  code: string;
+  /** 自救已切到哪台主机（还没连上） */
+  target?: string;
+  tries: number;
   at: number;
 }
 
@@ -41,6 +51,8 @@ export interface OnlineState {
   matchScore: MatchScore | null;
   /** 房间内本次进房以来的累计 */
   roomScores: RoomScoreRow[];
+  /** 断线后的自救（仅在有房间时出现） */
+  rescue: RescueState | null;
 }
 
 const initial: OnlineState = {
@@ -56,9 +68,10 @@ const initial: OnlineState = {
   myScore: null,
   matchScore: null,
   roomScores: [],
+  rescue: null,
 };
 
-/** 联机客户端：自动重连（指数退避）、离线消息排队、状态可订阅。 */
+/** 联机客户端：自动重连（指数退避 + 抖动）、断线自救（局域网找接棒主机）、状态可订阅。 */
 class OnlineClient {
   private state: OnlineState = initial;
   private listeners = new Set<() => void>();
@@ -68,6 +81,9 @@ class OnlineClient {
   private retryTimer: number | null = null;
   private queue: ClientMessage[] = [];
   private pingTimer: number | null = null;
+  /** 最近一次收到服务器任何消息的时间：看门狗靠它发现静默断链 */
+  private lastAlive = 0;
+  private rescueTimer: number | null = null;
 
   getState = () => this.state;
 
@@ -101,8 +117,10 @@ class OnlineClient {
       return;
     }
     this.ws = ws;
+    this.lastAlive = Date.now();
     ws.onopen = () => {
       this.retry = 0;
+      this.lastAlive = Date.now();
       const { name, token, avatar } = profile.get();
       ws.send(
         JSON.stringify({
@@ -116,13 +134,23 @@ class OnlineClient {
       // 重连后回到原来的房间（服务器重启过、房间已不在时会收到 no-room）
       const roomCode = this.state.room?.code;
       if (roomCode) ws.send(JSON.stringify({ t: 'join', code: roomCode } satisfies ClientMessage));
-      const pending = this.queue.filter((m) => !(m.t === 'join' && m.code === roomCode));
+      // 掉线期间留下的进房/建房/聊天补发；操作类消息已丢弃，以服务器状态为准
+      const pending = this.queue.filter((m) => m.t === 'chat' || m.t === 'create' || (m.t === 'join' && m.code !== roomCode));
       this.queue = [];
       for (const m of pending) ws.send(JSON.stringify(m));
-      this.patch({ status: 'open' });
-      this.pingTimer = window.setInterval(() => this.send({ t: 'ping' }), 20_000);
+      this.patch({ status: 'open', rescue: null });
+      this.stopRescue();
+      this.pingTimer = window.setInterval(() => {
+        // 看门狗：服务器 45 秒没有任何回音（移动网络静默断链）就主动断开触发重连
+        if (Date.now() - this.lastAlive > 45_000) {
+          ws.close();
+          return;
+        }
+        this.send({ t: 'ping' });
+      }, 20_000);
     };
     ws.onmessage = (e) => {
+      this.lastAlive = Date.now();
       try {
         this.onMessage(JSON.parse(String(e.data)) as ServerMessage);
       } catch {
@@ -141,34 +169,80 @@ class OnlineClient {
 
   private scheduleReconnect() {
     this.retry++;
-    const delay = Math.min(8000, 400 * 2 ** Math.min(this.retry, 5));
-    this.patch({ status: this.retry > 6 ? 'offline' : 'reconnecting' });
+    // 抖动：一堆设备同时断网重连时别在同一毫秒一起压上来
+    const delay = Math.min(8000, 400 * 2 ** Math.min(this.retry, 5)) * (0.7 + Math.random() * 0.6);
+    const offline = this.retry > 6;
+    this.patch({ status: offline ? 'offline' : 'reconnecting' });
+    // 房间里断到彻底离线：开自救——在局域网里找持有这间房的主机（含接棒的新主机）
+    if (offline && this.state.room) this.startRescue();
     this.retryTimer = window.setTimeout(() => {
       this.retryTimer = null;
       if (this.wanted) this.connect();
     }, delay);
   }
 
+  /* ---------------- 断线自救：局域网里找持有这间房的主机 ---------------- */
+
+  private startRescue(): void {
+    const code = this.state.room?.code;
+    if (!code || this.rescueTimer) return;
+    let tries = 0;
+    const tick = async () => {
+      this.rescueTimer = null;
+      // getState() 是方法调用，TS 不会沿用旧收窄；等 await 回来必须重读真实状态
+      if (!this.wanted || !this.getState().room || this.getState().status === 'open') return;
+      tries++;
+      this.patch({ rescue: { code, tries, at: Date.now() } });
+      try {
+        const host = await findRoomHost(code);
+        if (!this.wanted || this.getState().status === 'open' || !host) return;
+        const target = `ws://${host.ip}:${host.port}/ws`;
+        if (normalizeServer(serverUrl()) !== normalizeServer(target)) {
+          setServerOverride(target);
+          this.patch({ rescue: { code, target: `${host.ip}:${host.port}`, tries, at: Date.now() } });
+          this.retry = 0;
+          this.connect();
+          return;
+        }
+      } catch {
+        /* 扫不到就等下一轮 */
+      }
+      if (tries < 10) this.rescueTimer = window.setTimeout(tick, 8_000);
+    };
+    this.rescueTimer = window.setTimeout(tick, 3_000);
+  }
+
+  private stopRescue(): void {
+    if (this.rescueTimer) clearTimeout(this.rescueTimer);
+    this.rescueTimer = null;
+    if (this.state.rescue) this.patch({ rescue: null });
+  }
+
   /** 立即重试（例如用户点击"重新连接"） */
   reconnectNow(): void {
     this.retry = 0;
+    this.stopRescue();
     this.connect();
   }
 
   send(msg: ClientMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
-    } else if (msg.t !== 'ping') {
-      // 离线期间排队，最多保留最近 30 条
-      this.queue = [...this.queue, msg].slice(-30);
-      this.connect();
+      return;
     }
+    // 掉线期间只有这三类值得留：进房/建房是流程的一部分，聊天是用户打了字。
+    // 操作类消息（出牌/换座/开局）过期重放会出错，一律丢弃，重连后以服务器状态为准。
+    if (msg.t === 'join' || msg.t === 'create' || msg.t === 'chat') {
+      this.queue = [...this.queue, msg].slice(-20);
+    }
+    if (msg.t !== 'ping') this.connect();
   }
 
   /** 离开联机（回到大厅时调用） */
   disconnect(): void {
     this.wanted = false;
     this.queue = [];
+    this.stopRescue();
     if (this.retryTimer) clearTimeout(this.retryTimer);
     this.ws?.close();
     this.ws = null;

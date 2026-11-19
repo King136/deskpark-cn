@@ -6,7 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Avatar, Seat } from '../../components/Seat';
 import { Button, Sheet, toast } from '../../components/ui';
 import type { GameController } from '../../lib/controller';
-import { useSeatScale } from '../../lib/media';
+import { useNarrow, useSeatScale } from '../../lib/media';
 import { playSound } from '../../lib/sound';
 import { useCompact, useTurnCue } from '../shared/trick';
 import { BonusChip, GEMS, GEM_LABEL, GemCard, GemCardBack, GemToken, NobleTile } from './art';
@@ -87,6 +87,7 @@ export default function GemBoard({ ctl }: { ctl: Ctl }) {
   const me = ctl.seat ?? 0;
   const spectator = ctl.seat === null;
   const compact = useCompact();
+  const narrow = useNarrow();
   const scale = useSeatScale();
   const over = v.phase === 'over';
   const myTurn = !spectator && !over && v.turn === me;
@@ -103,6 +104,8 @@ export default function GemBoard({ ctl }: { ctl: Ctl }) {
   // ---- 尺寸：按可用空间算牌宽 ----
   const [tableRef, box] = useBox();
   const cw = useStableSize(Math.max(40, Math.min(200, box.w / 6.4, box.h / 5.5)));
+  // 供应区(1.16cw)+桌面(5.48cw)+间距 ≈ 6.9cw，窄屏 cw 受 40px 下限托底时放不下：整体等比收小
+  const layoutK = Math.min(1, box.w > 0 ? Math.max(0.55, (box.w - 14) / (6.9 * cw)) : 1);
 
   // ---- 拿宝石：点供应区的筹码挑选 ----
   const [sel, setSel] = useState<Gem[]>([]);
@@ -329,7 +332,7 @@ export default function GemBoard({ ctl }: { ctl: Ctl }) {
       <div className="gg__main">
         <div className="gg__table" ref={tableRef}>
           {box.w > 0 && (
-            <div className="gg__layout">
+            <div className="gg__layout" style={{ zoom: layoutK }}>
               <div className="gg__bank" aria-label="宝石供应区">
                 {TOKENS.map((t) => (
                   <GemToken
@@ -499,7 +502,7 @@ export default function GemBoard({ ctl }: { ctl: Ctl }) {
               <small>声望</small>
             </span>
           </div>
-          <Holdings p={mine} size={compact ? '26px' : 'calc(34px * var(--k, 1))'} />
+          <Holdings p={mine} size={narrow ? '22px' : compact ? '26px' : 'calc(34px * var(--k, 1))'} />
           <div className="gg-me__reserved">
             {mine.reserved.map((c) =>
               c ? (

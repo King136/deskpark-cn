@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-VERSION="${FPK_VERSION:-0.7.0}"
+VERSION="${FPK_VERSION:-0.8.0}"
 ARCH="${FPK_ARCH:-x64}"
 PLATFORM="${FPK_PLATFORM:-x86}"
 PORT="${FPK_PORT:-8787}"

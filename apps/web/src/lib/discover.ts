@@ -18,6 +18,17 @@ export interface FoundHost {
   rooms: FoundRoom[];
 }
 
+/** 房间预览：大厅输码时实时显示"什么玩法、几个人" */
+export interface RoomPreview {
+  code: string;
+  gameId: string;
+  seats: number;
+  humans: number;
+  status: string;
+  spectators?: number;
+  players?: (string | null)[];
+}
+
 const PORT = 8787;
 
 type CapParkHost = { lanIp?: () => Promise<{ ip?: string }> };
@@ -88,34 +99,49 @@ async function probe(ip: string, signal: AbortSignal): Promise<FoundHost | null>
 }
 
 /**
- * 并行扫一个 /24，单地址 600ms 超时，整体约 7 秒内出结果。
+ * 并行扫一个 /24：一批 64 个地址、单批 450ms 超时，全场约 2 秒内出结果。
+ * 局域网里不存在的 IP 要么立刻 RST 要么静默丢包，批大小对耗时影响远大于超时值；
+ * 同时并发去重——10 秒轮询和「输入房号触发扫描」撞在一起时共用一次扫描。
  * 网段来源优先级：显式传入 > 原生 lanIp > 页面域名猜测。
  */
-export async function scanLan(explicitPrefix?: string): Promise<FoundHost[]> {
-  const self = await lanIp();
-  const prefix =
-    normalizePrefix(explicitPrefix ?? '') || (self ? self.slice(0, self.lastIndexOf('.')) : '') || guessLanPrefix();
-  if (!prefix) return [];
-  const found: FoundHost[] = [];
-  const batch = 24;
+let inflight: Promise<FoundHost[]> | null = null;
 
-  for (let start = 1; start <= 254; start += batch) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 600);
-    const tasks: Promise<void>[] = [];
-    for (let i = start; i < Math.min(start + batch, 255); i++) {
-      const ip = `${prefix}.${i}`;
-      if (self && ip === self) continue;
-      tasks.push(
-        probe(ip, ctrl.signal).then((h) => {
-          if (h) found.push(h);
-        }),
-      );
+function doScan(prefix?: string): Promise<FoundHost[]> {
+  return (async () => {
+    const self = await lanIp();
+    const p =
+      normalizePrefix(prefix ?? '') || (self ? self.slice(0, self.lastIndexOf('.')) : '') || guessLanPrefix();
+    if (!p) return [];
+    const found: FoundHost[] = [];
+    const batch = 64;
+
+    for (let start = 1; start <= 254; start += batch) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 450);
+      const tasks: Promise<void>[] = [];
+      for (let i = start; i < Math.min(start + batch, 255); i++) {
+        const ip = `${p}.${i}`;
+        if (self && ip === self) continue;
+        tasks.push(
+          probe(ip, ctrl.signal).then((h) => {
+            if (h) found.push(h);
+          }),
+        );
+      }
+      await Promise.all(tasks);
+      clearTimeout(timer);
     }
-    await Promise.all(tasks);
-    clearTimeout(timer);
-  }
-  return found.sort((a, b) => b.rooms.length - a.rooms.length);
+    return found.sort((a, b) => b.rooms.length - a.rooms.length);
+  })();
+}
+
+export function scanLan(explicitPrefix?: string): Promise<FoundHost[]> {
+  if (explicitPrefix) return doScan(explicitPrefix);
+  if (inflight) return inflight;
+  inflight = doScan().finally(() => {
+    inflight = null;
+  });
+  return inflight;
 }
 
 
@@ -123,4 +149,34 @@ export async function scanLan(explicitPrefix?: string): Promise<FoundHost[]> {
 export async function findRoomHost(code: string): Promise<FoundHost | null> {
   const list = await scanLan();
   return list.find((h) => h.rooms?.some((r) => r.code.toUpperCase() === code.toUpperCase())) ?? null;
+}
+
+/** ws:// 地址 → http(s) 源，用于探测同一台主机的 HTTP 接口 */
+export function httpOrigin(wsUrl: string): string {
+  return wsUrl.replace(/^ws/i, 'http').replace(/\/ws$/, '');
+}
+
+/** 通用 HTTP JSON 探测（带超时），失败返回 null */
+async function getJson<T>(url: string, timeoutMs: number): Promise<T | null> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 问当前服务器：这个房号在不在、什么玩法、几个人。1.2 秒内给不出就当没有 */
+export function probeRoom(origin: string, code: string): Promise<RoomPreview | null> {
+  return getJson<RoomPreview>(`${origin}/api/room?code=${encodeURIComponent(code)}`, 1200);
+}
+
+/** 主机健康探测（设置页「探测主机」）：/api/lan 两端都支持 */
+export function probeHost(origin: string): Promise<{ name?: string; rooms?: unknown[] } | null> {
+  return getJson<{ name?: string; rooms?: unknown[] }>(`${origin}/api/lan`, 1500);
 }

@@ -719,8 +719,6 @@
 }
 .tomb {
   position: relative;
-  /* 必须是 block：<button> 作为 flex 容器时 Chrome 会生成匿名 wrapper，
-     其宽度按 max-content 撑开，art 的 width:100% 就变成 118px 而不是列宽 87px。 */
   display: block;
   overflow: hidden;
   min-width: 0;
@@ -734,7 +732,7 @@
   transition: transform 0.16s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 .tomb:active {
-  transform: scale(0.97);
+  transform: scale(0.985);
 }
 .tomb .gtile__art {
   height: 84px;
@@ -754,32 +752,47 @@
 }
 .tomb__meta {
   display: block;
-  padding: 0 6px 8px;
+  padding: 0 6px 6px;
   font-size: 9.5px;
   color: var(--ink-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tomb__link {
-  position: absolute;
-  z-index: 4;
-  right: 4px;
-  top: 4px;
+/* 卡片底部两个显式按钮：单人 / 联机。
+   不再用「整卡可点 + 角标联机」的嵌套交互，按钮语义干净、误触少。 */
+.tomb__ops {
   display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 0 5px 6px;
+}
+.tomb__op {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 30px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 600;
   color: var(--ink);
-  background: color-mix(in oklab, var(--surface) 86%, transparent);
+  background: color-mix(in oklab, var(--ink) 5%, transparent);
   box-shadow: inset 0 0 0 1px var(--line);
-  backdrop-filter: blur(4px);
+  transition: transform 0.12s ease;
+}
+.tomb__op--local {
+  color: var(--accent-ink, #fff);
+  background: var(--accent, #2f6b55);
+  box-shadow: none;
+}
+.tomb__op:active {
+  transform: scale(0.94);
 }
 .tomb__badge {
   position: absolute;
-  left: 6px;
-  bottom: 6px;
+  right: 5px;
+  top: 5px;
   z-index: 3;
   padding: 1px 5px;
   border-radius: 5px;
@@ -788,39 +801,120 @@
   background: var(--accent);
 }
 
-/* ---------- 局域网主机发现 ---------- */
-.lanbar {
+/* ---------- 玩法搜索 ---------- */
+.wall__search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 10px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-3);
+}
+.wall__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  color: var(--ink);
+  outline: none;
+}
+.wall__search input::placeholder {
+  color: var(--ink-3);
+  opacity: 0.8;
+}
+.wall__search-clear {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-3);
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+}
+
+/* ---------- 联机状态条：当前连着谁 + 局域网主机发现 ---------- */
+.netline {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 2px 0 2px;
+  margin: 2px 0;
+  min-height: 26px;
 }
-.lanbar__label {
+.netline__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  flex: none;
+}
+.netline__dot--open {
+  background: #3aa66a;
+  box-shadow: 0 0 0 3px color-mix(in oklab, #3aa66a 18%, transparent);
+}
+.netline__dot--connecting,
+.netline__dot--reconnecting {
+  background: #c9922f;
+  animation: netline-pulse 1.2s ease-in-out infinite;
+}
+.netline__dot--offline,
+.netline__dot--idle {
+  background: color-mix(in oklab, var(--ink) 30%, transparent);
+}
+@keyframes netline-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.netline__server {
   font-size: 11px;
+  color: var(--ink-2);
+  font-weight: 600;
+  max-width: 46%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.netline__hint {
+  font-size: 10.5px;
   color: var(--ink-3);
 }
-.lanbar__chip {
+.netline__chip {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
-  padding: 4px 9px;
+  padding: 3px 9px;
   border-radius: 99px;
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--line);
-  font-size: 11.5px;
+  font-size: 11px;
+  transition: transform 0.12s ease;
 }
-.lanbar__chip b {
+.netline__chip:active {
+  transform: scale(0.95);
+}
+.netline__chip b {
   font-variant-numeric: tabular-nums;
 }
-.lanbar__chip small {
+.netline__chip small {
   font-size: 10px;
   color: var(--ink-3);
 }
-.lanbar__retry {
+.netline__rescan {
+  margin-left: auto;
   font-size: 11px;
   color: var(--ink-3);
   padding: 4px 6px;
+  border-radius: 8px;
+}
+.netline__rescan:disabled {
+  opacity: 0.5;
 }
 
 .brand__text small {

@@ -15,7 +15,7 @@ import { profile, settings } from '../lib/store';
 import type { FeltTheme } from '../lib/store';
 import { online } from '../lib/online';
 import { getServerOverride, isWebview, serverUrl, setServerOverride } from '../lib/platform';
-import { guessLanPrefix, scanLan, type FoundHost } from '../lib/discover';
+import { guessLanPrefix, probeHost as probeHostApi, scanLan, type FoundHost } from '../lib/discover';
 import {
   DAV_DEFAULT,
   davDownload,
@@ -349,13 +349,12 @@ export function ServerSection() {
     const u = new URL(serverUrl().replace(/^ws/, 'http'));
     const base = `${u.protocol}//${u.host}`;
     setProbe('正在探测…');
-    try {
-      const res = await fetch(`${base}/api/lan`, { cache: 'no-store' });
-      const data = (await res.json()) as { name?: string; rooms?: unknown[] };
-      setProbe(`主机在线 · ${data.name ?? '闲亭'} · 当前 ${data.rooms?.length ?? 0} 间房`);
-    } catch {
-      setProbe('这个地址没有应答，确认主机在跑、并且在同一网络');
-    }
+    const res = await probeHostApi(base);
+    setProbe(
+      res
+        ? `主机在线 · ${res.name ?? '闲亭'} · 当前 ${res.rooms?.length ?? 0} 间房`
+        : '这个地址没有应答，确认主机在跑、并且在同一网络',
+    );
   };
 
   const apply = (text: string) => {
@@ -493,7 +492,7 @@ export function ServerSection() {
         {probe && <small className="server-field__now">{probe}</small>}
         <small className="server-field__now">
           当前：{serverUrl()}
-          {native && !now ? '（App 内通常连不上，请先填地址）' : ''}
+          {native && !now ? '（App 默认连本机主机；要全网联机就填服务器地址）' : ''}
         </small>
       </div>
     </div>

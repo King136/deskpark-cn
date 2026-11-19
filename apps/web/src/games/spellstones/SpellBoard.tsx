@@ -7,7 +7,7 @@ import { Seat } from '../../components/Seat';
 import { Button, Sheet, toast } from '../../components/ui';
 import type { GameController } from '../../lib/controller';
 import { signed } from '../../lib/format';
-import { useSeatScale } from '../../lib/media';
+import { useNarrow, useSeatScale } from '../../lib/media';
 import { playSound } from '../../lib/sound';
 import { useCompact, useTurnCue } from '../shared/trick';
 import { BOARD_ART, LifeTokens, SPELL_UI, Stone, Wizard } from './spells';
@@ -106,6 +106,7 @@ export default function SpellBoard({ ctl }: { ctl: Ctl }) {
   const n = v.players.length;
   const compact = useCompact();
   const scale = useSeatScale();
+  const narrow = useNarrow();
   const myTurn = !spectator && v.phase === 'play' && v.turn === me;
   useTurnCue(myTurn);
   const odds = useMemo(() => (spectator ? null : SS.rackOdds(v, me)), [v, me, spectator]);
@@ -422,10 +423,15 @@ export default function SpellBoard({ ctl }: { ctl: Ctl }) {
         {W > 0 &&
           others.map((s, i) => {
             const slot = slots[i];
+            // 侧栏对手的石架原宽约 240px，窄屏列宽只有 ~100px：按列宽收小（石架 zoom 消费 --k）
             const pos: CSSProperties =
               slot.side === 'top'
                 ? { left: '50%', top: 0 }
-                : { left: slot.side === 'left' ? colW / 2 : W - colW / 2, top: slot.y * H };
+                : ({
+                    left: slot.side === 'left' ? colW / 2 : W - colW / 2,
+                    top: slot.y * H,
+                    '--k': String(Math.min(scale, Math.max(0.42, (colW - 12) / 240))),
+                  } as CSSProperties);
             return (
               <div
                 key={s}
@@ -443,7 +449,8 @@ export default function SpellBoard({ ctl }: { ctl: Ctl }) {
                   tag={relOf(s)}
                   tagTone="plain"
                   bubble={bubbleOf(s)}
-                  bubbleSide={slot.side === 'left' ? 'right' : 'left'}
+                  // 窄屏侧栏只有 ~100px：气泡弹向侧方会整个出屏，一律朝下
+                  bubbleSide={slot.side === 'top' || narrow ? 'bottom' : slot.side === 'left' ? 'right' : 'left'}
                 />
                 <div className="ss-rack">
                   {rackOf(s, compact ? 'xs' : 'md')}

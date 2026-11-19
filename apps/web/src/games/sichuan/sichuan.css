@@ -762,8 +762,24 @@
 }
 @media (orientation: portrait) and (max-width: 600px) {
   .sc {
+    --rw: 13px; /* 竖屏牌略小，三列河区才放得进 250px 的中央列 */
     grid-template-columns: 64px minmax(0, 1fr) 64px;
     padding: 18px 6px 6px;
+  }
+  /* 上/下家河区改为全宽换行（原先横穿中间列，390px 屏会溢出 126px） */
+  .sc-table {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas:
+      'rt rt rt'
+      'rl cp rr'
+      'rb rb rb';
+    gap: 6px;
+  }
+  .sc-river.is-top,
+  .sc-river.is-bottom,
+  .sc-river.is-left,
+  .sc-river.is-right {
+    width: 100%;
   }
   .sc-act {
     flex-direction: column;
@@ -788,4 +804,12 @@
 }
 .sc-info {
   top: 4px;
+}
+
+/* 竖屏侧栏窄（64px）：座位徽标不再外挂 10px，避免顶出屏幕右缘 */
+@media (orientation: portrait) and (max-width: 600px) {
+  .sc-area .seat__tag {
+    right: 0;
+    top: -4px;
+  }
 }

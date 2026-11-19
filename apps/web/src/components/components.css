@@ -733,6 +733,10 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
   animation: pop-in 0.3s var(--ease-out);
   pointer-events: none;
+  /* 贴边座位（侧栏/角落）的气泡弹向外侧会出屏：宽文案压回可读宽度 */
+  max-width: min(190px, 46vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .seat__bubble.side-top {
   bottom: 100%;
