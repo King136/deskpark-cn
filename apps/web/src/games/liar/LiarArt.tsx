@@ -1,9 +1,2 @@
-import './liar.css';
-/** 大厅插画：五颗骰子 */
-export function LiarArt() {
-  return (
-    <span className="li-art">
-      {[5, 3, 6, 2, 4, 1, 5, 5, 3].map((n, i) => <i key={i}>{n}</i>)}
-    </span>
-  );
-}
+// 大厅卡片插画已统一为精致 SVG 风格，实现见 shared/CardArt
+export { LiarArt } from '../shared/CardArt';

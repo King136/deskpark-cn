@@ -1,8 +1,2 @@
-import './majiang.css';
-export function MajiangArt() {
-  return (
-    <span className="mj-art">
-      {['九万', '中', '三筒', '八条', '发', '二万', '五筒', '东风'].map((t, i) => <i key={i}>{t}</i>)}
-    </span>
-  );
-}
+// 大厅卡片插画已统一为精致矢量风格，实现见 shared/CardArt
+export { MajiangArt } from '../shared/CardArt';

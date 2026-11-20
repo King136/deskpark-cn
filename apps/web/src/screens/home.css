@@ -244,6 +244,55 @@
   box-sizing: border-box;
 }
 
+/* 统一精致 SVG 插画（新游戏卡片风格对齐五子棋/象棋等矢量卡）：
+   SVG 原生自适应容器，任意卡片宽度都清晰、不溢出 */
+.card-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.card-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 麻将卡：三张矢量牌面斜叠在绒布上，与川麻矢量牌同一套质感 */
+.mj-card-art {
+  position: relative;
+  overflow: hidden;
+}
+.mj-card-art__felt {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 40% 20%, #2f7a5c, #1c4a37 62%, #123527);
+}
+.mj-card-art__tile {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 46px;
+  margin: -23px 0 0 -17px;
+  border-radius: 4px;
+  background: linear-gradient(178deg, #fdfaf1, #ece2c9);
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(146, 124, 88, 0.35),
+    inset 0 -4px 0 rgba(38, 112, 74, 0.6);
+  overflow: hidden;
+}
+.mj-card-art__tile svg {
+  position: static;
+  width: 100%;
+  height: 100%;
+  padding: 2px 2px 4px;
+}
+.mj-card-art__tile--0 { transform: translate(-13px, 4px) rotate(-12deg); z-index: 1; }
+.mj-card-art__tile--1 { transform: translate(0, -4px) rotate(2deg); z-index: 3; }
+.mj-card-art__tile--2 { transform: translate(13px, 4px) rotate(13deg); z-index: 2; }
+
 /* 固定像素的画稿按 art 容器宽度等比缩小：
    大厅小卡只有 77–97px 宽，画稿原稿 96–200px，不缩放就会撑爆列宽并横向溢出。
    用 zoom 而不是 scale：scale 只改视觉不改布局，flex 子项仍按原宽排布、居中会错位；
