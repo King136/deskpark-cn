@@ -33,3 +33,8 @@ packaging/dist/
 *.fpk
 *.hap
 
+*.mjs.tmp
+shoot*.mjs
+reshoot*.mjs
+roll.mjs
+mines-test.mjs
