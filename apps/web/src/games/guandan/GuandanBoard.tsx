@@ -110,6 +110,7 @@ export default function GuandanBoard({ ctl }: { ctl: Ctl }) {
   const seatEl = (s: number, side: 'left' | 'right' | 'top') => (
     <Seat
       player={players[s]}
+      seat={s}
       active={v.turn === s && playing}
       deadline={ctl.deadlines[s]}
       tag={placeOf(s)}
@@ -201,6 +202,7 @@ export default function GuandanBoard({ ctl }: { ctl: Ctl }) {
         <div className="gd__myseat">
           <Seat
             player={players[me]}
+            seat={me}
             active={myTurn}
             deadline={ctl.deadlines[me]}
             tag={placeOf(me)}

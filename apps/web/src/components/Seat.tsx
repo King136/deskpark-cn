@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { figureHeight, useFigure } from '../lib/characters';
 import type { PlayerInfo } from '../lib/controller';
 import { useCompact, useSeatScale } from '../lib/media';
+import { useSeatPlay } from '../lib/seatPlays';
+import type { PlayCard } from '../lib/actionNarrator';
+import { FaceByIndex } from './MahjongTile';
 import { CharacterSprite } from './pixel/CharacterSprite';
 import { PixelAvatar } from './pixel/PixelAvatar';
 
@@ -53,9 +56,38 @@ export interface SeatProps {
   side?: 'top' | 'bottom' | 'left' | 'right';
   /** 全身立绘不占额外高度、头部探出座位上沿（德州胶囊座位用） */
   figureOverflow?: boolean;
+  /** 座位号：提供后在积分下方展示该座位"本手出牌/走子" */
+  seat?: number;
+  /** 只渲染信息区（名字/积分/本手），不画头像立绘——用于底部已有手牌区的"我" */
+  metaOnly?: boolean;
   className?: string;
   style?: CSSProperties;
   children?: ReactNode;
+}
+
+const SUIT_SYMBOL: Record<string, string> = { S: '♠', H: '♥', C: '♣', D: '♦', J: '🃏' };
+
+/** 座位下方"本手"迷你牌面：扑克显示花色+点数，麻将显示矢量牌面，棋类显示记谱文字 */
+function SeatHand({ cards, notation }: { cards?: PlayCard[]; notation?: string }) {
+  if (notation) return <div className="seat-hand__note">{notation}</div>;
+  if (!cards?.length) return null;
+  return (
+    <div className="seat-hand__cards">
+      {cards.slice(0, 9).map((c, i) =>
+        c.tile != null ? (
+          <span className="seat-hand__tile" key={i}>
+            <FaceByIndex t={c.tile} />
+          </span>
+        ) : (
+          <span className={`seat-hand__card${c.red ? ' is-red' : ''}`} key={i}>
+            {c.suit && c.suit !== 'J' && <i>{SUIT_SYMBOL[c.suit]}</i>}
+            <b>{c.text}</b>
+          </span>
+        ),
+      )}
+      {cards.length > 9 && <span className="seat-hand__more">+{cards.length - 9}</span>}
+    </div>
+  );
 }
 
 export function Seat({
@@ -72,12 +104,15 @@ export function Seat({
   layout = 'column',
   side,
   figureOverflow = false,
+  seat,
+  metaOnly = false,
   className = '',
   style,
   children,
 }: SeatProps) {
   const compact = useCompact();
   const scale = useSeatScale();
+  const play = useSeatPlay(seat);
   // 横屏手机等矮屏幕上自动缩小，大屏幕上适当放大
   const px = compact ? Math.round(size * 0.7) : Math.round(size * scale);
   const cd = useCountdown(active ? deadline : undefined);
@@ -131,9 +166,9 @@ export function Seat({
   const sideCls = side ? `seat--side-${side}` : '';
   return (
     <div
-      className={`seat seat--${layout} ${sideCls} ${vc ? 'seat--figure' : ''} ${active ? 'is-active' : ''} ${dim ? 'is-dim' : ''} ${className}`}
+      className={`seat seat--${layout} ${sideCls} ${vc && !metaOnly ? 'seat--figure' : ''} ${metaOnly ? 'seat--meta-only' : ''} ${active ? 'is-active' : ''} ${dim ? 'is-dim' : ''} ${className}`}
       style={
-        vc
+        vc && !metaOnly
           ? ({
               ...style,
               '--fig-h': `${figH}px`,
@@ -143,7 +178,7 @@ export function Seat({
           : style
       }
     >
-      {vc ? (
+      {metaOnly ? null : vc ? (
         <div
           className={`seat__figure ${figureOverflow ? 'is-overflow' : ''}`}
           style={figureOverflow ? { height: px, width: (figH * vc.frameW) / vc.frameH } : undefined}
@@ -182,6 +217,12 @@ export function Seat({
           {player.isMe && <span className="seat__me">我</span>}
         </span>
         {sub !== undefined && <span className="seat__sub num">{sub}</span>}
+        {play && (
+          <div className="seat-hand" key={play.version}>
+            <span className="seat-hand__label">{play.label}</span>
+            <SeatHand cards={play.cards} notation={play.notation} />
+          </div>
+        )}
       </div>
       {bubble && <div className={`seat__bubble side-${bubbleSide}`}>{bubble}</div>}
       {player.speech && (

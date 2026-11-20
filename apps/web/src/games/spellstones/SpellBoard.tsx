@@ -441,6 +441,7 @@ export default function SpellBoard({ ctl }: { ctl: Ctl }) {
               >
                 <Seat
                   player={ctl.players[s]}
+                  seat={s}
                   active={v.turn === s}
                   deadline={ctl.deadlines[s]}
                   size={56}
@@ -466,6 +467,7 @@ export default function SpellBoard({ ctl }: { ctl: Ctl }) {
         <div className="ss__me">
           <Seat
             player={ctl.players[me]}
+            seat={me}
             active={v.phase === 'play' && v.turn === me}
             deadline={ctl.deadlines[me]}
             size={50}

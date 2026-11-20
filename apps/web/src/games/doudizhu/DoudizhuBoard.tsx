@@ -248,6 +248,7 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
     <div className={`ddz__seat is-${side}`}>
       <Seat
         player={players[s]}
+        seat={s}
         active={v.turn === s && !over}
         deadline={ctl.deadlines[s]}
         tag={role(s)}
@@ -310,6 +311,7 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
         <div className="ddz__myseat">
           <Seat
             player={players[me]}
+            seat={me}
             active={v.turn === me && !over}
             deadline={ctl.deadlines[me]}
             tag={role(me)}

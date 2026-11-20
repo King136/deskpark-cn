@@ -375,6 +375,7 @@ export default function HexisleBoard({ ctl }: { ctl: Ctl }) {
               >
                 <Seat
                   player={ctl.players[s]}
+                  seat={s}
                   active={
                     !over &&
                     (v.phase === 'discard'

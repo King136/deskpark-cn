@@ -204,6 +204,7 @@ export default function TexasBoard({ ctl }: { ctl: Ctl }) {
               >
                 <Seat
                   player={ctl.players[s]}
+                  seat={s}
                   active={v.turn === s}
                   deadline={ctl.deadlines[s]}
                   dim={p.folded || p.out}
@@ -278,6 +279,7 @@ export default function TexasBoard({ ctl }: { ctl: Ctl }) {
           <div className="tx__me">
             <Seat
               player={ctl.players[me]}
+              seat={me}
               active={myTurn}
               deadline={ctl.deadlines[me]}
               dim={mine.folded && !mine.out}

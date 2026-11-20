@@ -4,12 +4,10 @@ import { Button, Sheet } from '../../components/ui';
 import { FaceByIndex } from '../../components/MahjongTile';
 import type { GameController } from '../../lib/controller';
 import { callout } from '../../lib/callout';
-import { PixelAvatar } from '../../components/pixel/PixelAvatar';
+import { Seat } from '../../components/Seat';
 import './majiang.css';
 
 type Ctl = GameController<mjx.MjView, mjx.MjAction>;
-const NAMES = ['东', '南', '西', '北'];
-
 const SUIT_TXT = ['万', '条', '筒'];
 const honor = ['东', '南', '西', '北', '中', '发', '白'];
 
@@ -77,13 +75,20 @@ export default function MajiangBoard({ ctl }: { ctl: Ctl }) {
   const Opp = ({ s, place }: { s: number; place: 'top' | 'left' | 'right' }) => {
     const p = ctl.players[s];
     const pile = v.discards[s] ?? [];
+    // 形象在外侧、信息在内侧，与川麻 seatBlock 完全一致的方位语义
+    const side = place;
     return (
       <div className={`mj__opp is-${place}${v.turn === s ? ' is-turn' : ''}`}>
-        <div className="mj__opp-head">
-          <PixelAvatar avatar={p?.avatar} name={p?.name ?? NAMES[s]} size={24} />
-          <span>{p?.name ?? NAMES[s]}</span>
-          <small>{v.hands[s]?.length ?? 0} 张</small>
-        </div>
+        <Seat
+          player={p}
+          seat={s}
+          active={v.turn === s && !v.over}
+          deadline={ctl.deadlines[s]}
+          size={place === 'top' ? 46 : 40}
+          layout={place === 'top' ? 'row' : 'column'}
+          side={side}
+          sub={`${v.hands[s]?.length ?? 0} 张`}
+        />
         <div className="mj__opp-hand">
           {Array.from({ length: Math.min(v.hands[s]?.length ?? 0, 13) }, (_, i) => (
             <Tile key={i} t={0} back small />
@@ -151,7 +156,13 @@ export default function MajiangBoard({ ctl }: { ctl: Ctl }) {
         <div className="mj__area-bottom">
           <div className="mj__mine">
             <div className="mj__mine-head">
-              <b>我</b>
+              <Seat
+                player={ctl.players[seat]}
+                seat={seat}
+                metaOnly
+                layout="row"
+                sub={`${hand.length} 张`}
+              />
               {v.melds[seat]?.length > 0 && (
                 <span className="mj__mine-melds">
                   {v.melds[seat].map((m, i) => (

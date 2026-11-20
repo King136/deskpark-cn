@@ -111,6 +111,7 @@ export function PlayerCard({
       <div className="duel-card__head">
         <Seat
           player={ctl.players[seat]}
+          seat={seat}
           active={active}
           deadline={ctl.deadlines[seat]}
           size={compact ? 30 : 40}

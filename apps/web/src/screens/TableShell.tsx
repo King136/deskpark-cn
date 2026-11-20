@@ -4,7 +4,6 @@ import {
   BookOpen,
   Bot,
   ChevronLeft,
-  MoreHorizontal,
   RotateCw,
   Palette,
   Trophy,
@@ -17,8 +16,10 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { MatchScoreCard, MyScoreCard, RoomScoreTable } from '../components/ScoreBoard';
 import { TableHud } from '../components/TableHud';
+import { ResultOverlay } from '../components/ResultOverlay';
 import { callout } from '../lib/callout';
 import { narrate, type Narration } from '../lib/actionNarrator';
+import { SeatPlaysContext, type SeatPlayMap } from '../lib/seatPlays';
 import { syncBarColor } from '../lib/barcolor';
 import { Button, Sheet, toast } from '../components/ui';
 import { replyChat } from '../lib/ai/agent';
@@ -77,25 +78,16 @@ export function TableShell({
   const [rules, setRules] = useState(false);
   const [look, setLook] = useState(false);
   const [stats, setStats] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   /** 已经关掉结算卡的局号 */
   const [dismissedScore, setDismissedScore] = useState(0);
   const net = useOnline();
   const online_ = ctl.mode === 'online';
 
-  /* 逐手动作播报：最近一条显示在牌桌左上，全部作为 system 消息进聊天留痕 */
+  /* 逐手动作播报：完整动作写入聊天留痕；每个座位的最新一手展示在头像下方 */
   const [actionLog, setActionLog] = useState<ChatMessage[]>([]);
-  const [recentAction, setRecentAction] = useState<Narration | null>(null);
+  const [seatPlays, setSeatPlays] = useState<SeatPlayMap>({});
   const actionSeq = useRef(0);
-  /** 播报条保留时长后淡出，避免长期占据牌桌角落 */
-  const [actionVisible, setActionVisible] = useState(true);
-  useEffect(() => {
-    if (!recentAction) return;
-    setActionVisible(true);
-    const h = window.setTimeout(() => setActionVisible(false), 4200);
-    return () => window.clearTimeout(h);
-  }, [recentAction]);
 
   /* ---------------- 宿主交权 / 屏幕旋转 ---------------- */
   /** 工具条与交互区是否由本页自己画；宿主可用 postMessage 关掉 */
@@ -141,10 +133,8 @@ export function TableShell({
   /* ---------------- 交互区：三态 + 拖动 ---------------- */
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [body, setBody] = useState({ w: 0, h: 0 });
-  // 竖屏默认只露信息头：棋盘/牌桌先占满屏，聊天点「展开」再来，避免交互区长期吃掉 1/3 画面
-  const [dock, setDock] = useState<DockState>(() =>
-    typeof window !== 'undefined' && window.innerWidth >= 900 ? 'open' : 'peek',
-  );
+  // 聊天交互区默认展开（含输入框与常驻表情），玩家可向上/下拖动调整高度
+  const [dock, setDock] = useState<DockState>('open');
   const [dragPx, setDragPx] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -361,10 +351,20 @@ export function TableShell({
     const snd = LAST_SOUND[ctl.last.type];
     if (snd) playSound(snd);
 
-    // 从 view 提取公开的最近一手，生成可读文案：牌桌左上角显示 + 写入聊天留痕
-    const n = narrate(ctl);
+    // 从 view 提取公开的最近一手，生成可读文案：写入聊天留痕 + 更新该座位的"本手"展示
+    const n: Narration | null = narrate(ctl);
     if (!n) return;
-    setRecentAction(n);
+    if (n.seat != null && n.seat >= 0) {
+      setSeatPlays((prev) => ({
+        ...prev,
+        [n.seat!]: {
+          label: n.label ?? n.short,
+          cards: n.cards,
+          notation: n.notation,
+          version: ctl.version,
+        },
+      }));
+    }
     setActionLog((list) => [
       ...list.slice(-39),
       {
@@ -377,6 +377,13 @@ export function TableShell({
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctl.version, ctl.last]);
+
+  // 新开一局（版本回退到 1）时清空上一局各座位的本手展示
+  const prevVersion = useRef(ctl.version);
+  useEffect(() => {
+    if (ctl.version < prevVersion.current) setSeatPlays({});
+    prevVersion.current = ctl.version;
+  }, [ctl.version]);
 
   const onBack = () => {
     if (ctl.mode === 'online' && !ctl.over) setConfirmLeave(true);
@@ -460,69 +467,68 @@ export function TableShell({
       {chrome.tools && (
       <header className="table__top">
         <div className="table__tools">
-          <button className="tool tool--back" onClick={onBack} aria-label="回大厅">
-            <ChevronLeft size={19} />
-          </button>
-          <span className="tool tool--static" title={title}>
-            <span className="tool__name">{title}</span>
-            {online_ && net.room && <em className="tool__code">{net.room.code}</em>}
-          </span>
-          <span className="table__tools-gap" />
-          {ctl.seat !== null && !ctl.over && (
-            <button
-              className={`tool tool--auto ${ctl.auto ? 'is-on' : ''}`}
-              onClick={() => ctl.setAuto(!ctl.auto)}
-              aria-label={ctl.auto ? '取消托管' : '托管'}
-              title={ctl.auto ? '取消托管' : '托管'}
-            >
-              <Bot size={17} />
+          <div className="tool-identity">
+            <button className="tool-identity__back" onClick={onBack} aria-label="回大厅" title="返回大厅">
+              <ChevronLeft size={21} strokeWidth={2.4} />
             </button>
-          )}
-          {online_ && net.room && (
+            <div className="tool-identity__text" title={title}>
+              <span className="tool-identity__name">{title}</span>
+              {online_ && net.room && <em className="tool-identity__code">{net.room.code}</em>}
+            </div>
+          </div>
+          <div className="table__tools-gap" />
+          <div className="tool-row">
             <button
               className="tool"
-              onClick={() => void invite()}
-              aria-label="邀请牌友"
-              title={`邀请牌友（房号 ${net.room.code}）`}
+              onClick={() => setLook(true)}
+              aria-label="牌面与桌布"
+              title="牌面与桌布"
             >
-              <UserPlus size={17} />
+              <Palette size={18} />
             </button>
-          )}
-          <button
-            className="tool"
-            onClick={() => setStats(true)}
-            aria-label="战绩"
-            title="战绩 · 娱乐分"
-          >
-            <Trophy size={17} />
-          </button>
-          <button
-            className="tool"
-            onClick={() => setRules(true)}
-            aria-label="规则"
-            title="规则"
-          >
-            <BookOpen size={17} />
-          </button>
-          <button
-            className="tool"
-            onClick={() => setTurns((t) => (t + 1) % 4)}
-            aria-label="旋转"
-            title={turns % 2 === 1 ? '转回竖屏' : '转横屏'}
-          >
-            <RotateCw size={16} style={{ transform: `rotate(${turns * 90}deg)` }} />
-          </button>
-          <button
-            className={`tool tool--sound ${s.sound ? '' : 'is-off'}`}
-            onClick={() => settings.set({ sound: !s.sound })}
-            aria-label={s.sound ? '静音' : '打开音效'}
-            title={s.sound ? '静音' : '打开音效'}
-          >
-            {s.sound ? <Volume2 size={17} /> : <VolumeX size={17} />}
-          </button>
-          <button className="tool" onClick={() => setMenu(true)} aria-label="更多操作" title="更多">
-            <MoreHorizontal size={19} />
-          </button>
+            {ctl.seat !== null && !ctl.over && (
+              <button
+                className={`tool ${ctl.auto ? 'is-on' : ''}`}
+                onClick={() => ctl.setAuto(!ctl.auto)}
+                aria-label={ctl.auto ? '取消托管' : '托管'}
+                title={ctl.auto ? '取消托管' : '托管'}
+              >
+                <Bot size={18} />
+              </button>
+            )}
+            {online_ && net.room && (
+              <button
+                className="tool"
+                onClick={() => void invite()}
+                aria-label="邀请牌友"
+                title={`邀请牌友（房号 ${net.room.code}）`}
+              >
+                <UserPlus size={18} />
+              </button>
+            )}
+            <button className="tool" onClick={() => setStats(true)} aria-label="战绩" title="战绩 · 娱乐分">
+              <Trophy size={18} />
+            </button>
+            <button className="tool" onClick={() => setRules(true)} aria-label="规则" title="规则">
+              <BookOpen size={18} />
+            </button>
+            <button
+              className="tool"
+              onClick={() => setTurns((t) => (t + 1) % 4)}
+              aria-label="旋转"
+              title={turns % 2 === 1 ? '转回竖屏' : '转横屏'}
+            >
+              <RotateCw size={17} style={{ transform: `rotate(${turns * 90}deg)` }} />
+            </button>
+            <button
+              className={`tool ${s.sound ? '' : 'is-off'}`}
+              onClick={() => settings.set({ sound: !s.sound })}
+              aria-label={s.sound ? '静音' : '打开音效'}
+              title={s.sound ? '静音' : '打开音效'}
+            >
+              {s.sound ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
+          </div>
         </div>
       </header>
       )}
@@ -577,28 +583,8 @@ export function TableShell({
               {turnHand != null && <small>{turnHand} 张</small>}
             </div>
           )}
-          {recentAction && !ctl.over && (
-            <div
-              key={recentAction.text + ctl.version}
-              className={`action-ribbon${actionVisible ? '' : ' is-fade'}${
-                showTurnRibbon ? ' is-lower' : ''
-              }`}
-              role="status"
-              aria-live="polite"
-              title={recentAction.text}
-            >
-              <span className="action-ribbon__tag">最近</span>
-              <span className="action-ribbon__text">
-                {recentAction.seat != null && recentAction.seat >= 0 && (
-                  <b>{ctl.players[recentAction.seat]?.name ?? `${recentAction.seat + 1} 号位`}</b>
-                )}
-                {recentAction.short}
-              </span>
-            </div>
-          )}
           <div className="board__stage" style={stageStyle}>
-            {children}
-
+            <SeatPlaysContext.Provider value={seatPlays}>{children}</SeatPlaysContext.Provider>
           </div>
         </main>
 
@@ -636,6 +622,8 @@ export function TableShell({
           <ChevronLeft size={20} style={{ rotate: '180deg' }} />
         </button>
       )}
+
+      {ctl.over && <ResultOverlay ctl={ctl} />}
 
       <div className="emote-layer">
         {[...emotes, ...bursts].map((e) => {
@@ -679,33 +667,6 @@ export function TableShell({
           />
         </div>
       )}
-
-      <Sheet open={menu} onClose={() => setMenu(false)} title="牌桌菜单">
-        <div className="table-menu">
-          <button
-            onClick={() => {
-              setMenu(false);
-              setLook(true);
-            }}
-          >
-            <Palette size={18} />
-            <span>牌面与桌布</span>
-            <small>牌背、绒布颜色</small>
-          </button>
-          {online_ && net.room && (
-            <button
-              onClick={() => {
-                setMenu(false);
-                void invite();
-              }}
-            >
-              <UserPlus size={18} />
-              <span>邀请牌友</span>
-              <small>复制房号 {net.room.code}</small>
-            </button>
-          )}
-        </div>
-      </Sheet>
 
       <Sheet open={rules} onClose={() => setRules(false)} title={`${ctl.def.meta.name} · 规则`} wide>
         <ol className="rules-list">

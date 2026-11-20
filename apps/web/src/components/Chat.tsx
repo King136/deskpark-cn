@@ -49,6 +49,7 @@ export function ChatPanel({
   tone = 'paper',
   autoFocus,
   placeholder = '说点什么…',
+  emotesPinned = false,
 }: {
   messages: ChatMessage[];
   myId: string | null;
@@ -56,10 +57,12 @@ export function ChatPanel({
   tone?: 'paper' | 'felt';
   autoFocus?: boolean;
   placeholder?: string;
+  /** 表情栏常驻显示（独立聊天室用；牌桌内由 HUD 自己的表情条常驻） */
+  emotesPinned?: boolean;
 }) {
   const [draft, setDraft] = useState('');
   const [quick, setQuick] = useState(false);
-  const [emoteOpen, setEmoteOpen] = useState(false);
+  const [emoteOpen, setEmoteOpen] = useState(emotesPinned);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastId = messages.at(-1)?.id ?? 0;

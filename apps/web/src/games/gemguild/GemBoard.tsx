@@ -414,6 +414,7 @@ export default function GemBoard({ ctl }: { ctl: Ctl }) {
               >
                 <Seat
                   player={ctl.players[s]}
+                  seat={s}
                   active={v.turn === s && !over}
                   deadline={ctl.deadlines[s]}
                   size={compact ? 26 : 34}
@@ -486,6 +487,7 @@ export default function GemBoard({ ctl }: { ctl: Ctl }) {
           <div className="gg-me">
             <Seat
               player={ctl.players[me]}
+              seat={me}
               active={myTurn}
               deadline={ctl.deadlines[me]}
               size={46}

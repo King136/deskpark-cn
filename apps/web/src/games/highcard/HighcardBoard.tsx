@@ -66,6 +66,7 @@ export default function HighcardBoard({ ctl }: { ctl: Ctl }) {
     return (
       <Seat
         player={ctl.players[s]}
+        seat={s}
         active={v.phase === 'choose' && !v.hasChosen[s]}
         size={58}
         sub={<span className="num">{v.scores[s]} 分</span>}

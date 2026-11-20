@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@park/protocol';
 import { EMOTES } from '@park/protocol';
-import { ChevronDown, GripHorizontal, Smile, Trophy } from 'lucide-react';
+import { ChevronDown, GripHorizontal, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { GameController } from '../lib/controller';
 import { activeSeat, phaseText, seatCounts, seatScores, secondsLeft } from '../lib/hudFacts';
@@ -79,7 +79,6 @@ export function TableHud({
 }: TableHudProps) {
   const online_ = useOnline();
   const onEmote = chat.onEmote;
-  const [emoji, setEmoji] = useState(false);
   const v = (ctl.view ?? {}) as Record<string, unknown>;
   const turn = activeSeat(v);
   const [, tick] = useState(0);
@@ -125,16 +124,8 @@ export function TableHud({
               <Trophy size={15} />
             </button>
           )}
-          {online_ && ctl.seat !== null && (
-            <button
-              className={`hud__head-btn ${emoji ? 'is-on' : ''}`}
-              onClick={() => setEmoji((x) => !x)}
-              aria-label="表情"
-              title="表情"
-            >
-              <Smile size={15} />
-              {chat.unread > 0 && <span className="hud__badge num">{chat.unread}</span>}
-            </button>
+          {online_ && ctl.seat !== null && chat.unread > 0 && (
+            <span className="hud__badge num" title="未读消息">{chat.unread}</span>
           )}
           <button className="hud__head-btn hud__head-btn--toggle" onClick={onToggle} aria-label="收起或展开交互区">
             {dock === 'open' ? '收起' : '展开'}
@@ -142,16 +133,10 @@ export function TableHud({
           </button>
         </header>
 
-        {emoji && online_ && (
-          <div className="hud__emotes">
+        {online_ && (
+          <div className="hud__emotes" aria-label="快捷表情">
             {EMOTES.map((e) => (
-              <button
-                key={e}
-                onClick={() => {
-                  onEmote?.(e);
-                  setEmoji(false);
-                }}
-              >
+              <button key={e} onClick={() => onEmote?.(e)} title={`发送 ${e}`}>
                 {e}
               </button>
             ))}

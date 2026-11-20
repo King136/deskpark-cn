@@ -14,6 +14,18 @@ import type { GameController } from './controller';
  *  - 其余玩法：按通用动作动词表把 `ctl.last.type` 映射成可读文案兜底。
  */
 
+/** 一手牌里的一张：可用于在座位旁渲染迷你牌面/牌型 */
+export interface PlayCard {
+  /** 主牌面文字，如 '6' / 'A' / '小王' / '中' */
+  text: string;
+  /** 扑克花色 S黑桃 H红桃 C梅花 D方块 J王 */
+  suit?: 'S' | 'H' | 'C' | 'D' | 'J';
+  /** 红牌（红桃/方块） */
+  red?: boolean;
+  /** 麻将牌编号（用矢量牌面渲染） */
+  tile?: number;
+}
+
 export interface Narration {
   /** 动作发生的座位；null 表示系统 */
   seat: number | null;
@@ -21,6 +33,12 @@ export interface Narration {
   text: string;
   /** 播报条用的短文案（通常去掉名字），例如「打出 顺子 3-4-5-6-7」 */
   short: string;
+  /** 牌型/动作标签，如「顺子」「对子」「碰」「跟注」 */
+  label?: string;
+  /** 本手具体牌面（扑克/麻将），用于座位旁的迷你牌面 */
+  cards?: PlayCard[];
+  /** 纯文字走子（象棋记谱/落点），无牌面时的展示 */
+  notation?: string;
 }
 
 /** 通用动作动词表：`ctl.last.type` → 中文，覆盖没有专门 view 字段的玩法 */
@@ -128,7 +146,18 @@ export function narrate(ctl: GameController): Narration | null {
       const rl = (r: number) =>
         ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A', 15: '2', 16: '小王', 17: '大王' } as Record<number, string>)[r] ?? String(r);
       const faces = cardsText(lp.cards, rl, sym);
-      return finish(lp.seat, faces ? `${kindName} ${faces}` : kindName);
+      // 结构化牌面：座位旁渲染用（王牌花色记 J，红桃/方块标红）
+      const rawCards = Array.isArray(lp.cards) ? (lp.cards as { suit?: string; rank?: number }[]) : [];
+      const cards: PlayCard[] = rawCards.map((c) => {
+        const s = (c.suit ?? 'J') as PlayCard['suit'];
+        return {
+          text: rl(c.rank ?? 0),
+          suit: s,
+          red: s === 'H' || s === 'D' || (c.rank ?? 0) === 17,
+        };
+      });
+      const n = finish(lp.seat, faces ? `${kindName} ${faces}` : kindName);
+      return { ...n, label: kindName, cards };
     }
   }
 
@@ -136,9 +165,14 @@ export function narrate(ctl: GameController): Narration | null {
   if (id.startsWith('mj_')) {
     const m = v.melds as number[][][] | undefined;
     const evt = pickMeldsEvent(m, last?.type);
-    if (evt) return finish(last?.seat, evt);
+    if (evt) return { ...finish(last?.seat, evt), label: evt };
     const lp = v.last as { tile: number; seat: number } | null | undefined;
-    if (lp) return finish(lp.seat, `打出 ${tileNameOf(lp.tile)}`);
+    if (lp)
+      return {
+        ...finish(lp.seat, `打出 ${tileNameOf(lp.tile)}`),
+        label: '打出',
+        cards: [{ text: tileNameOf(lp.tile), tile: lp.tile }],
+      };
   }
 
   /* ---------- 四川麻将：事件优先，否则最近打牌 ---------- */
@@ -147,9 +181,17 @@ export function narrate(ctl: GameController): Narration | null {
     const e = events[events.length - 1] as
       | { type: string; seat?: number; kongType?: string }
       | undefined;
-    if (e && SC_EVENT[e.type]) return finish(e.seat ?? last?.seat, SC_EVENT[e.type]);
+    if (e && SC_EVENT[e.type]) {
+      const label = SC_EVENT[e.type];
+      return { ...finish(e.seat ?? last?.seat, label), label };
+    }
     const ld = v.lastDiscard as { seat: number; id: number } | null | undefined;
-    if (ld) return finish(ld.seat, `打出 ${tileNameOf(ld.id)}`);
+    if (ld)
+      return {
+        ...finish(ld.seat, `打出 ${tileNameOf(ld.id)}`),
+        label: '打出',
+        cards: [{ text: tileNameOf(ld.id), tile: ld.id }],
+      };
   }
 
   /* ---------- 德州扑克：按动作座位取最后一次下注，避免误取别人的动作 ---------- */
@@ -160,7 +202,7 @@ export function narrate(ctl: GameController): Narration | null {
     if (a) {
       const verb = TX_ACTION[a.tag] ?? verbOf(a.tag);
       const amount = typeof a.amount === 'number' && a.amount > 0 ? ` ${a.amount}` : '';
-      return finish(s, `${verb}${amount}`);
+      return { ...finish(s, `${verb}${amount}`), label: verb };
     }
     if (last) return finish(last.seat, verbOf(last.type));
   }
@@ -199,7 +241,8 @@ export function narrate(ctl: GameController): Narration | null {
       if (m.check) short += ' · 将军';
       else if (m.captured) short += ' · 吃子';
       // 座位：mover 的颜色对应座位；用 last.seat 兜底
-      return finish(last?.seat ?? moverSeat(v, m), short);
+      const n = finish(last?.seat ?? moverSeat(v, m), short);
+      return { ...n, label: notation ? '走子' : undefined, notation: notation || undefined };
     }
   }
 
@@ -209,7 +252,8 @@ export function narrate(ctl: GameController): Narration | null {
     if (lp) {
       const col = String.fromCharCode(65 + lp.x);
       const extra = lp.flipped?.length ? ` · 翻 ${lp.flipped.length}` : '';
-      return finish(lp.seat, `落在 ${col}${lp.y + 1}${extra}`);
+      const n = finish(lp.seat, `落在 ${col}${lp.y + 1}${extra}`);
+      return { ...n, label: '落子', notation: `${col}${lp.y + 1}` };
     }
   }
 

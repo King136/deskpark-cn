@@ -275,6 +275,7 @@ export default function SichuanBoard({ ctl }: { ctl: Ctl }) {
       <div className={`sc-seat is-${where} ${p.won ? 'is-won' : ''}`}>
         <Seat
           player={ctl.players[s]}
+          seat={s}
           active={v.turn === s && !v.window && v.phase === 'play' && !p.won}
           deadline={ctl.deadlines[s]}
           size={54}
@@ -435,6 +436,7 @@ export default function SichuanBoard({ ctl }: { ctl: Ctl }) {
         <div className="sc-me">
           <Seat
             player={ctl.players[me]}
+            seat={me}
             active={myTurn}
             deadline={ctl.deadlines[me]}
             size={48}

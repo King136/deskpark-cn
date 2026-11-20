@@ -344,6 +344,7 @@ export default function OneCardBoard({ ctl }: { ctl: Ctl }) {
             >
               <Seat
                 player={ctl.players[s]}
+                seat={s}
                 active={v.turn === s}
                 deadline={ctl.deadlines[s]}
                 size={crowded ? 42 : 54}
@@ -458,6 +459,7 @@ export default function OneCardBoard({ ctl }: { ctl: Ctl }) {
           <div className="oc__me">
             <Seat
               player={ctl.players[me]}
+              seat={me}
               active={myTurn}
               deadline={ctl.deadlines[me]}
               size={50}

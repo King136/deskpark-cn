@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.deskpark.park",
     "vendor": "deskpark",
-    "versionCode": 900100,
-    "versionName": "0.9.1",
+    "versionCode": 900200,
+    "versionName": "0.9.2",
     "icon": "$media:app_icon",
     "label": "$string:app_name"
   }

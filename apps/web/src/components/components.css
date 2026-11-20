@@ -720,6 +720,73 @@
   align-items: center;
   gap: 4px;
 }
+/* 精简模式：只显示信息区，不画头像/立绘（麻将底部"我"用） */
+.seat--meta-only .seat__meta { align-items: flex-start; }
+.seat--meta-only .seat__name { font-size: 12.5px; }
+/* 座位下方"本手出牌/走子"：每手更新，牌型标签 + 迷你牌面/记谱 */
+.seat-hand {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 3px;
+  max-width: 15em;
+  animation: seat-hand-in 0.3s ease-out both;
+}
+@keyframes seat-hand-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.seat-hand__label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--felt-accent, #e7c886);
+  white-space: nowrap;
+}
+.seat-hand__cards {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1px;
+}
+.seat-hand__card {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  min-width: 15px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  color: #23251f;
+  font-size: 10px;
+  line-height: 1.1;
+}
+.seat-hand__card i { font-size: 8px; font-style: normal; }
+.seat-hand__card.is-red { color: #c0342b; }
+.seat-hand__tile {
+  display: inline-flex;
+  width: 15px;
+  height: 20px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #f6f0e2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+.seat-hand__tile > svg { width: 100%; height: 100%; }
+.seat-hand__note {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--felt-ink);
+  white-space: nowrap;
+}
+.seat-hand__more {
+  font-size: 9px;
+  color: var(--felt-ink-2);
+  align-self: center;
+}
 .seat__bubble {
   position: absolute;
   z-index: 30;

@@ -281,6 +281,7 @@ function WaitingRoom() {
             myId={net.playerId}
             onSend={(text) => online.send({ t: 'chat', text })}
             autoFocus
+            emotesPinned
             placeholder="和房间里的人打个招呼…"
           />
         </div>
