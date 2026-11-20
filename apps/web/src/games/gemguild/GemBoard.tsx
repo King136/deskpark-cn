@@ -418,6 +418,7 @@ export default function GemBoard({ ctl }: { ctl: Ctl }) {
                   deadline={ctl.deadlines[s]}
                   size={compact ? 26 : 34}
                   className="gg-opp__seat"
+                  side="right"
                   sub={
                     <span className="gg-opp__sub">
                       <Layers size={11} />

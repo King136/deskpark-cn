@@ -115,6 +115,7 @@ export default function GuandanBoard({ ctl }: { ctl: Ctl }) {
       tag={placeOf(s)}
       sub={<CountChip n={v.handCounts[s]} warnAt={6} />}
       layout={side === 'top' ? 'row' : 'column'}
+      side={side}
       bubble={v.jiefeng === s && playing && !v.lastPlay ? '接风' : undefined}
       bubbleSide={side === 'left' ? 'right' : side === 'right' ? 'left' : 'bottom'}
       className={gd.teamOf(s) === myTeam ? 'is-ally' : ''}

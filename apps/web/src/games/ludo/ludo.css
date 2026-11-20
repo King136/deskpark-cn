@@ -82,7 +82,7 @@ html[data-device='phone'][data-orientation='portrait'] .ld__track {
 .ld__cell.is-start { background: rgba(120, 200, 150, 0.14); }
 .ld__cell.is-start .ld__no { color: #9fd8b4; opacity: 0.95; }
 .ld__cell.is-goal { background: rgba(231, 200, 134, 0.18); }
-.ld__cell.is-goal .ld__no { color: #e7c886; opacity: 0.95; }
+.ld__cell.is-goal .ld__no { color: var(--felt-accent, #e7c886); opacity: 0.95; }
 .ld__cell i {
   width: 62%;
   height: 62%;

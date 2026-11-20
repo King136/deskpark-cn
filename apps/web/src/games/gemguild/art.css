@@ -250,7 +250,7 @@ button.ggc:disabled {
 }
 .ggk__ring {
   fill: rgba(0, 0, 0, 0.18);
-  stroke: #e7c886;
+  stroke: var(--felt-accent, #e7c886);
   stroke-width: 2.4;
 }
 .ggk__ring.is-thin {

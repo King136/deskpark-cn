@@ -271,15 +271,6 @@ function WaitingRoom() {
         })}
       </section>
 
-      <section className="room__scores">
-        <RoomScoreTable
-          rows={net.roomScores}
-          unit={net.matchScore?.unit ?? '分'}
-          title="这一桌的娱乐分"
-        />
-        <MyScoreCard summary={net.myScore} />
-      </section>
-
       <section className="room__chat">
         <h3>
           房间聊天<small>{net.chat.filter((m) => m.kind === 'user').length} 条消息</small>
@@ -289,9 +280,19 @@ function WaitingRoom() {
             messages={net.chat}
             myId={net.playerId}
             onSend={(text) => online.send({ t: 'chat', text })}
+            autoFocus
             placeholder="和房间里的人打个招呼…"
           />
         </div>
+      </section>
+
+      <section className="room__scores">
+        <RoomScoreTable
+          rows={net.roomScores}
+          unit={net.matchScore?.unit ?? '分'}
+          title="这一桌的娱乐分"
+        />
+        <MyScoreCard summary={net.myScore} />
       </section>
 
       <section className="room__options">

@@ -23,7 +23,7 @@ import { figureHeight, useFigure } from '../lib/characters';
 import { CharacterSprite } from '../components/pixel/CharacterSprite';
 import { profile, settings } from '../lib/store';
 import { VERSION_TEXT } from '../lib/version';
-import { FELTS, AvatarStudio, ServerSection } from './SettingsSheet';
+import { FELTS, AvatarStudio, ServerSection, AiSection, SyncSection } from './SettingsSheet';
 import './me.css';
 
 /** 一行设置：图标 + 标题 + 说明 + 右侧控件，和系统设置同一套语言 */
@@ -203,6 +203,16 @@ export function Me() {
       <section className="me__group">
         <h2>联机与局域网</h2>
         <ServerSection />
+      </section>
+
+      <section className="me__group">
+        <h2>AI 人机</h2>
+        <AiSection />
+      </section>
+
+      <section className="me__group">
+        <h2>数据同步</h2>
+        <SyncSection />
       </section>
 
       <section className="me__group">

@@ -297,12 +297,18 @@
     0 10px 22px rgba(20, 26, 22, 0.12);
 }
 
-/* 联机区块收进分组视觉 */
-.me__group .server-block {
+/* 联机 / AI 人机 / 数据同步等从设置面板并入的区块，统一收进分组卡片视觉 */
+.me__group .server-block,
+.me__group .ai-settings,
+.me__group .dav-block {
   padding: 12px 14px;
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--line);
+}
+.me__group .ai-settings + .ai-settings,
+.me__group .dav-block + .dav-block {
+  margin-top: 2px;
 }
 
 

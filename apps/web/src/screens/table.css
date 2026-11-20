@@ -53,10 +53,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 40px;
-  height: 38px;
-  padding: 0 10px;
-  border-radius: 12px;
+  min-width: 34px;
+  height: 36px;
+  padding: 0 7px;
+  border-radius: 11px;
   font-size: 13px;
   line-height: 1;
   color: var(--felt-ink-2);
@@ -76,36 +76,36 @@
 }
 .tool--back {
   margin-left: -6px;
-  padding: 0 4px;
+  padding: 0 3px;
   color: var(--felt-ink);
 }
 .tool--static {
   display: inline-flex;
   align-items: baseline;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
-  padding: 0 4px;
+  padding: 0 2px;
   color: var(--felt-ink);
   background: transparent;
   cursor: default;
 }
 .tool--static .tool__name {
-  max-width: 52vw;
+  max-width: 9em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
 }
 .tool__code {
   flex: none;
   font-style: normal;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  padding: 2px 6px;
-  border-radius: 6px;
+  letter-spacing: 0.06em;
+  padding: 1.5px 5px;
+  border-radius: 5px;
   color: var(--felt-accent);
   background: rgba(231, 200, 134, 0.14);
 }
@@ -629,6 +629,69 @@
   }
   100% {
     box-shadow: 0 0 0 0 rgba(231, 200, 134, 0);
+  }
+}
+
+/* ---------- 逐手动作播报条（牌桌左上，最近一手，几秒后淡出） ---------- */
+.action-ribbon {
+  position: absolute;
+  z-index: 31;
+  left: 10px;
+  top: 3px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 24px);
+  padding: 0 9px 0 5px;
+  border-radius: 99px;
+  font-size: 11px;
+  color: var(--felt-ink);
+  background: rgba(9, 26, 22, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(231, 200, 134, 0.18);
+  pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  animation: action-ribbon-in 0.28s ease-out both;
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.action-ribbon.is-lower {
+  top: 29px;
+}
+.action-ribbon.is-fade {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.action-ribbon__tag {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: 9.5px;
+  letter-spacing: 0.5px;
+  color: #0f1a16;
+  background: var(--felt-accent, #e7c886);
+  font-weight: 700;
+}
+.action-ribbon__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.action-ribbon__text b {
+  color: var(--felt-accent, #e7c886);
+  font-weight: 700;
+}
+.action-ribbon__text b::after {
+  content: ' ';
+}
+@keyframes action-ribbon-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

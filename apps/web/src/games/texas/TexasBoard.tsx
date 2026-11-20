@@ -210,6 +210,7 @@ export default function TexasBoard({ ctl }: { ctl: Ctl }) {
                   size={50}
                   layout="row"
                   figureOverflow
+                  side={x <= 50 ? 'left' : 'right'}
                   tag={winners.has(s) && result ? '赢' : undefined}
                   sub={p.out ? '出局' : <span className="num">{formatChips(p.stack)}</span>}
                   bubble={

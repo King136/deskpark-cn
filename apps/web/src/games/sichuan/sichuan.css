@@ -499,7 +499,7 @@
   background: rgba(255, 255, 255, 0.12);
 }
 .sc-coach-chip.is-on {
-  color: #1f5c4f;
+  color: var(--accent);
   background: linear-gradient(180deg, #eef7f1, #d6eadf);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
@@ -666,7 +666,7 @@
   border-radius: 99px;
   font: inherit;
   font-size: 12.5px;
-  color: #1f5c4f;
+  color: var(--accent);
   background: #e2ece8;
   cursor: pointer;
 }

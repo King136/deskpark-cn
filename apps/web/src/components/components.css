@@ -1529,3 +1529,24 @@ html[data-booting='1'] .table {
     animation-delay: 0ms !important;
   }
 }
+
+/* ---------------- 座位方位：信息贴牌桌内侧，形象在外侧 ----------------
+   side-left：形象在左（外侧），信息在右（靠近牌桌）；
+   side-right：信息在左（靠近牌桌），形象在右（外侧）；
+   side-bottom：信息在上（贴近牌桌），形象在下（外侧）。 */
+.seat--side-left {
+  flex-direction: row;
+}
+.seat--side-right {
+  flex-direction: row-reverse;
+}
+.seat--side-bottom {
+  flex-direction: column-reverse;
+}
+.seat--side-left .seat__meta,
+.seat--side-right .seat__meta {
+  text-align: left;
+}
+.seat--side-right .seat__meta {
+  align-items: flex-end;
+}

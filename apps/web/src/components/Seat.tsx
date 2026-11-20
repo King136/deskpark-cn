@@ -49,6 +49,8 @@ export interface SeatProps {
   dim?: boolean;
   size?: number;
   layout?: 'column' | 'row';
+  /** 座位在牌桌的方位：信息（牌数/筹码）永远贴牌桌内侧，形象在外侧，避免互相遮挡 */
+  side?: 'top' | 'bottom' | 'left' | 'right';
   /** 全身立绘不占额外高度、头部探出座位上沿（德州胶囊座位用） */
   figureOverflow?: boolean;
   className?: string;
@@ -68,6 +70,7 @@ export function Seat({
   dim,
   size = 60,
   layout = 'column',
+  side,
   figureOverflow = false,
   className = '',
   style,
@@ -125,9 +128,10 @@ export function Seat({
       {cd && <span className="seat__seconds num">{cd.seconds}</span>}
     </>
   );
+  const sideCls = side ? `seat--side-${side}` : '';
   return (
     <div
-      className={`seat seat--${layout} ${vc ? 'seat--figure' : ''} ${active ? 'is-active' : ''} ${dim ? 'is-dim' : ''} ${className}`}
+      className={`seat seat--${layout} ${sideCls} ${vc ? 'seat--figure' : ''} ${active ? 'is-active' : ''} ${dim ? 'is-dim' : ''} ${className}`}
       style={
         vc
           ? ({

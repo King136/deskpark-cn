@@ -230,7 +230,7 @@ function AvatarSection() {
 }
 
 /** AI 人机：接口设置（只保存在本机浏览器） */
-function AiSection() {
+export function AiSection() {
   const a = aiSettings.use();
   const d = AI_DEFAULTS[a.protocol];
   const [testing, setTesting] = useState(false);

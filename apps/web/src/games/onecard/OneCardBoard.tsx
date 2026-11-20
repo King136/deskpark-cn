@@ -348,6 +348,7 @@ export default function OneCardBoard({ ctl }: { ctl: Ctl }) {
                 deadline={ctl.deadlines[s]}
                 size={crowded ? 42 : 54}
                 layout={compact ? 'row' : 'column'}
+                side={sin > 0.35 ? 'bottom' : cos > 0.35 ? 'right' : cos < -0.35 ? 'left' : undefined}
                 sub={
                   <span className="oc-sub">
                     <Layers size={11} strokeWidth={2.4} />

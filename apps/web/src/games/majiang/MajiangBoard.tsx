@@ -12,6 +12,13 @@ const NAMES = ['东', '南', '西', '北'];
 const SUIT_TXT = ['万', '条', '筒'];
 const honor = ['东', '南', '西', '北', '中', '发', '白'];
 
+/** 三个地域变体的特色：一眼分清当前打的是哪一桌规则 */
+const REGION_TAG: Record<string, { name: string; trait: string }> = {
+  guangdong: { name: '广东推倒胡', trait: '可吃可碰' },
+  changsha: { name: '长沙红中', trait: '红中赖子' },
+  guobiao: { name: '国标麻将', trait: '番种计分' },
+};
+
 export function tileText(t: number): string {
   if (t >= 27) return honor[t - 27] ?? '?';
   return `${(t % 9) + 1}${SUIT_TXT[Math.floor(t / 9)]}`;
@@ -107,6 +114,15 @@ export default function MajiangBoard({ ctl }: { ctl: Ctl }) {
           <Opp s={left} place="left" />
         </div>
         <div className="mj__center">
+          {(() => {
+            const tag = REGION_TAG[v.options?.region ?? ''] ?? { name: '麻将', trait: '四家竞技' };
+            return (
+              <div className="mj__variant" title={tag.trait}>
+                <b>{tag.name}</b>
+                <small>{tag.trait}</small>
+              </div>
+            );
+          })()}
           <div className="mj__compass">
             <i className={v.turn === seat ? 'is-on' : ''}>我</i>
             <i className={v.turn === right ? 'is-on' : ''}>下</i>

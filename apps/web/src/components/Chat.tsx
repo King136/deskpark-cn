@@ -1,9 +1,17 @@
 import type { ChatMessage } from '@park/protocol';
 import { CHAT_MAX_LENGTH, QUICK_PHRASES } from '@park/protocol';
-import { MessageSquareText, SendHorizontal } from 'lucide-react';
+import { MessageSquareText, SendHorizontal, Smile } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PixelAvatar } from './pixel/PixelAvatar';
 import './chat.css';
+
+/** 牌局常用表情：一屏放得下（6×3），点击即发 */
+export const CHAT_EMOTES = [
+  '😄', '😂', '🤔', '😮', '😅', '🥳',
+  '👍', '👏', '🤝', '💪', '🙏', '🫡',
+  '🎉', '🏆', '🔥', '💥', '🍀', '🍻',
+  '🀄', '♠️', '♥️', '♣️', '♦️', '🃏',
+];
 
 function timeText(at: number): string {
   const d = new Date(at);
@@ -51,6 +59,7 @@ export function ChatPanel({
 }) {
   const [draft, setDraft] = useState('');
   const [quick, setQuick] = useState(false);
+  const [emoteOpen, setEmoteOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastId = messages.at(-1)?.id ?? 0;
@@ -70,6 +79,7 @@ export function ChatPanel({
     onSend(t);
     setDraft('');
     setQuick(false);
+    setEmoteOpen(false);
   };
 
   return (
@@ -89,6 +99,15 @@ export function ChatPanel({
           ))}
         </div>
       )}
+      {emoteOpen && (
+        <div className="chat__emotes">
+          {CHAT_EMOTES.map((e) => (
+            <button key={e} onClick={() => send(e)} aria-label={`发送 ${e}`}>
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
       <form
         className="chat__form"
         onSubmit={(e) => {
@@ -98,10 +117,25 @@ export function ChatPanel({
       >
         <button
           type="button"
+          className={`chat__icon ${emoteOpen ? 'is-on' : ''}`}
+          aria-label="表情"
+          title="表情"
+          onClick={() => {
+            setEmoteOpen((x) => !x);
+            setQuick(false);
+          }}
+        >
+          <Smile size={18} />
+        </button>
+        <button
+          type="button"
           className={`chat__icon ${quick ? 'is-on' : ''}`}
           aria-label="快捷语"
           title="快捷语"
-          onClick={() => setQuick((x) => !x)}
+          onClick={() => {
+            setQuick((x) => !x);
+            setEmoteOpen(false);
+          }}
         >
           <MessageSquareText size={18} />
         </button>

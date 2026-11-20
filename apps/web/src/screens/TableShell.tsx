@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MatchScoreCard, MyScoreCard, RoomScoreTable } from '../components/ScoreBoard';
 import { TableHud } from '../components/TableHud';
 import { callout } from '../lib/callout';
+import { narrate, type Narration } from '../lib/actionNarrator';
 import { syncBarColor } from '../lib/barcolor';
 import { Button, Sheet, toast } from '../components/ui';
 import { replyChat } from '../lib/ai/agent';
@@ -82,6 +83,19 @@ export function TableShell({
   const [dismissedScore, setDismissedScore] = useState(0);
   const net = useOnline();
   const online_ = ctl.mode === 'online';
+
+  /* 逐手动作播报：最近一条显示在牌桌左上，全部作为 system 消息进聊天留痕 */
+  const [actionLog, setActionLog] = useState<ChatMessage[]>([]);
+  const [recentAction, setRecentAction] = useState<Narration | null>(null);
+  const actionSeq = useRef(0);
+  /** 播报条保留时长后淡出，避免长期占据牌桌角落 */
+  const [actionVisible, setActionVisible] = useState(true);
+  useEffect(() => {
+    if (!recentAction) return;
+    setActionVisible(true);
+    const h = window.setTimeout(() => setActionVisible(false), 4200);
+    return () => window.clearTimeout(h);
+  }, [recentAction]);
 
   /* ---------------- 宿主交权 / 屏幕旋转 ---------------- */
   /** 工具条与交互区是否由本页自己画；宿主可用 postMessage 关掉 */
@@ -255,7 +269,8 @@ export function TableShell({
 
   /* ---------------- 聊天 ---------------- */
   const [localChat, setLocalChat] = useState<ChatMessage[]>([]);
-  const chatMessages = online_ ? net.chat : localChat;
+  // 动作留痕与用户聊天合并：动作是 system 消息，排在对应时刻之后
+  const chatMessages = online_ ? [...net.chat, ...actionLog] : [...localChat, ...actionLog];
   const myChatId = online_ ? net.playerId : LOCAL_ID;
   const ctlRef = useRef(ctl);
   ctlRef.current = ctl;
@@ -336,7 +351,7 @@ export function TableShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastChatId]);
 
-  // 动作音效
+  // 动作音效 + 逐手播报（同一动作只处理一次）
   const lastKey = useRef('');
   useEffect(() => {
     if (!ctl.last) return;
@@ -345,6 +360,22 @@ export function TableShell({
     lastKey.current = key;
     const snd = LAST_SOUND[ctl.last.type];
     if (snd) playSound(snd);
+
+    // 从 view 提取公开的最近一手，生成可读文案：牌桌左上角显示 + 写入聊天留痕
+    const n = narrate(ctl);
+    if (!n) return;
+    setRecentAction(n);
+    setActionLog((list) => [
+      ...list.slice(-39),
+      {
+        id: -100000 - ++actionSeq.current,
+        kind: 'system',
+        text: n.text,
+        at: Date.now(),
+        seat: n.seat,
+      },
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctl.version, ctl.last]);
 
   const onBack = () => {
@@ -444,16 +475,50 @@ export function TableShell({
               aria-label={ctl.auto ? '取消托管' : '托管'}
               title={ctl.auto ? '取消托管' : '托管'}
             >
-              <Bot size={18} />
+              <Bot size={17} />
             </button>
           )}
+          {online_ && net.room && (
+            <button
+              className="tool"
+              onClick={() => void invite()}
+              aria-label="邀请牌友"
+              title={`邀请牌友（房号 ${net.room.code}）`}
+            >
+              <UserPlus size={17} />
+            </button>
+          )}
+          <button
+            className="tool"
+            onClick={() => setStats(true)}
+            aria-label="战绩"
+            title="战绩 · 娱乐分"
+          >
+            <Trophy size={17} />
+          </button>
+          <button
+            className="tool"
+            onClick={() => setRules(true)}
+            aria-label="规则"
+            title="规则"
+          >
+            <BookOpen size={17} />
+          </button>
+          <button
+            className="tool"
+            onClick={() => setTurns((t) => (t + 1) % 4)}
+            aria-label="旋转"
+            title={turns % 2 === 1 ? '转回竖屏' : '转横屏'}
+          >
+            <RotateCw size={16} style={{ transform: `rotate(${turns * 90}deg)` }} />
+          </button>
           <button
             className={`tool tool--sound ${s.sound ? '' : 'is-off'}`}
             onClick={() => settings.set({ sound: !s.sound })}
             aria-label={s.sound ? '静音' : '打开音效'}
             title={s.sound ? '静音' : '打开音效'}
           >
-            {s.sound ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            {s.sound ? <Volume2 size={17} /> : <VolumeX size={17} />}
           </button>
           <button className="tool" onClick={() => setMenu(true)} aria-label="更多操作" title="更多">
             <MoreHorizontal size={19} />
@@ -510,6 +575,25 @@ export function TableShell({
                 轮到 <b>{turnName}</b>
               </span>
               {turnHand != null && <small>{turnHand} 张</small>}
+            </div>
+          )}
+          {recentAction && !ctl.over && (
+            <div
+              key={recentAction.text + ctl.version}
+              className={`action-ribbon${actionVisible ? '' : ' is-fade'}${
+                showTurnRibbon ? ' is-lower' : ''
+              }`}
+              role="status"
+              aria-live="polite"
+              title={recentAction.text}
+            >
+              <span className="action-ribbon__tag">最近</span>
+              <span className="action-ribbon__text">
+                {recentAction.seat != null && recentAction.seat >= 0 && (
+                  <b>{ctl.players[recentAction.seat]?.name ?? `${recentAction.seat + 1} 号位`}</b>
+                )}
+                {recentAction.short}
+              </span>
             </div>
           )}
           <div className="board__stage" style={stageStyle}>
@@ -601,52 +685,12 @@ export function TableShell({
           <button
             onClick={() => {
               setMenu(false);
-              setRules(true);
-            }}
-          >
-            <BookOpen size={18} />
-            <span>规则</span>
-            <small>这一桌怎么算赢</small>
-          </button>
-          <button
-            onClick={() => {
-              setMenu(false);
-              setStats(true);
-            }}
-          >
-            <Trophy size={18} />
-            <span>战绩</span>
-            <small>本房娱乐分与胜负记录</small>
-          </button>
-          <button
-            onClick={() => {
-              setMenu(false);
               setLook(true);
             }}
           >
             <Palette size={18} />
             <span>牌面与桌布</span>
             <small>牌背、绒布颜色</small>
-          </button>
-          <button
-            onClick={() => {
-              settings.set({ sound: !s.sound });
-              setMenu(false);
-            }}
-          >
-            {s.sound ? <Volume2 size={18} /> : <VolumeX size={18} />}
-            <span>{s.sound ? '关闭音效' : '打开音效'}</span>
-            <small>报牌语音与操作音</small>
-          </button>
-          <button
-            onClick={() => {
-              setTurns((t) => (t + 1) % 4);
-              setMenu(false);
-            }}
-          >
-            <RotateCw size={18} />
-            <span>旋转 {turns % 2 === 1 ? '回竖屏' : '横屏'}</span>
-            <small>当前 {turns * 90}°，锁竖屏时也能横着打</small>
           </button>
           {online_ && net.room && (
             <button
@@ -658,18 +702,6 @@ export function TableShell({
               <UserPlus size={18} />
               <span>邀请牌友</span>
               <small>复制房号 {net.room.code}</small>
-            </button>
-          )}
-          {ctl.seat !== null && !ctl.over && (
-            <button
-              onClick={() => {
-                ctl.setAuto(!ctl.auto);
-                setMenu(false);
-              }}
-            >
-              <Bot size={18} />
-              <span>{ctl.auto ? '取消托管' : '托管本局'}</span>
-              <small>让电脑暂时代打</small>
             </button>
           )}
         </div>

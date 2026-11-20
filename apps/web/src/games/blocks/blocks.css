@@ -1,10 +1,167 @@
-.bk { display: flex; flex-direction: column; height: 100%; gap: 8px; }
-.bk__head { display: flex; gap: 14px; padding: 2px 6px; font-size: 12.5px; color: var(--felt-ink-2); }
-.bk__stage { flex: 1; display: grid; place-items: center; min-height: 0; }
-.bk__board { display: grid; gap: 1px; width: min(calc(100cqw - 16px), calc((100cqh - 110px) * 10 / 18), 300px); aspect-ratio: 10 / 18; padding: 4px; border-radius: 8px; background: rgba(10, 16, 14, 0.6); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
-.bk__board i { background: rgba(255,255,255,0.06); border-radius: 2px; }
-.bk__pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-bottom: 10px; }
-.bk__pad button { height: 48px; border: 0; border-radius: 10px; background: rgba(255,255,255,0.16); color: var(--felt-ink); font-size: 18px; }
-.bk__result { margin: 0; font-size: 12.5px; color: var(--ink-2); }
-.bk-art { display: grid; grid-template-columns: repeat(10, 1fr); gap: 1px; width: 100%; height: 100%; padding: 6px; background: #20262c; }
-.bk-art i { background: rgba(255,255,255,0.1); border-radius: 1px; }
+.bk {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+/* 顶部：左分数/消行/等级，右「下一个」预览 */
+.bk__head {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 2px 4px;
+}
+.bk__stats {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+}
+.bk__stat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background: rgba(9, 26, 22, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.bk__stat small {
+  font-size: 9.5px;
+  color: var(--felt-ink-2);
+}
+.bk__stat b {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--felt-ink);
+}
+.bk__next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background: rgba(9, 26, 22, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.bk__next small {
+  font-size: 9.5px;
+  color: var(--felt-ink-2);
+}
+.bk__next-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 8px);
+  grid-template-rows: repeat(2, 8px);
+  gap: 1px;
+}
+.bk__next-grid i {
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.bk__next-grid i.is-on {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -2px 0 rgba(0, 0, 0, 0.28);
+}
+
+.bk__stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+.bk__board {
+  display: grid;
+  gap: 1px;
+  width: min(calc(100cqw - 16px), calc((100cqh - 150px) * 10 / 18), 300px);
+  aspect-ratio: 10 / 18;
+  padding: 5px;
+  border-radius: 10px;
+  background: rgba(5, 12, 10, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 10px 30px rgba(0, 0, 0, 0.38);
+}
+.bk__board i {
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.045);
+}
+/* 固定块与当前块：顶部高光 + 底部暗边，做出方块立体质感 */
+.bk__board i.is-fixed,
+.bk__board i.is-cur {
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.26),
+    inset 2px 0 0 rgba(255, 255, 255, 0.14),
+    inset -2px 0 0 rgba(0, 0, 0, 0.16);
+}
+.bk__board i.is-cur {
+  filter: brightness(1.12);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+/* 幽灵落点：半透明描边，不遮挡 */
+.bk__board i.is-ghost {
+  background: rgba(255, 255, 255, 0.09) !important;
+  opacity: 0.5;
+  outline: 1px dashed currentColor;
+  outline-offset: -1px;
+}
+
+.bk__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--felt-ink-2);
+  opacity: 0.8;
+}
+.bk__pad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+.bk__pad button {
+  height: 50px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--felt-ink);
+  font-size: 20px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  touch-action: manipulation;
+}
+.bk__pad button:active {
+  background: rgba(255, 255, 255, 0.26);
+  transform: scale(0.96);
+}
+.bk__pad button.bk__drop {
+  background: var(--felt-accent, #e7c886);
+  color: #0f1a16;
+}
+.bk__result {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* 大厅卡片插画 */
+.bk-art {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  background: #20262c;
+}
+.bk-art i {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1px;
+}

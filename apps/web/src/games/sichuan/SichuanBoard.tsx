@@ -279,6 +279,7 @@ export default function SichuanBoard({ ctl }: { ctl: Ctl }) {
           deadline={ctl.deadlines[s]}
           size={54}
           layout={where === 'top' ? 'row' : 'column'}
+          side={where === 'bottom' ? 'bottom' : where}
           tag={s === v.dealer ? '庄' : undefined}
           sub={
             v.phase === 'exchange' && p.exchangeChosen ? (

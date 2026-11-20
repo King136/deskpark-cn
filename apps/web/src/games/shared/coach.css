@@ -50,7 +50,7 @@
   gap: 6px;
   padding: 8px 10px 8px 12px;
   font-size: 13px;
-  color: #1f5c4f;
+  color: var(--accent);
   background: linear-gradient(180deg, #e6f2ea, #d9ebe0);
   border-bottom: 1px solid rgba(31, 92, 79, 0.15);
 }
@@ -108,7 +108,7 @@
   height: 14px;
   border-radius: 50%;
   border: 2px solid rgba(31, 92, 79, 0.2);
-  border-top-color: #1f5c4f;
+  border-top-color: var(--accent);
   animation: coach-spin 0.8s linear infinite;
 }
 @keyframes coach-spin {
@@ -156,7 +156,7 @@
   padding: 0 6px;
   border-radius: 4px;
   font-size: 11px;
-  color: #1f5c4f;
+  color: var(--accent);
   background: #e2ece8;
 }
 .coach__eval i {
@@ -194,7 +194,7 @@
   padding: 0 6px;
   border-radius: 4px;
   font-size: 11px;
-  color: #1f5c4f;
+  color: var(--accent);
   background: #e2ece8;
 }
 .coach__llm {
@@ -238,7 +238,7 @@
   padding: 5px 10px;
   border-radius: 12px 12px 2px 12px;
   color: #fff;
-  background: #1f5c4f;
+  background: var(--accent);
 }
 .coach__a {
   max-width: 95%;
@@ -273,7 +273,7 @@
 }
 .coach__ask input:focus {
   outline: none;
-  box-shadow: inset 0 0 0 1.5px #1f5c4f;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 .coach__ask button {
   display: grid;
@@ -283,7 +283,7 @@
   border: 0;
   border-radius: 50%;
   color: #fff;
-  background: #1f5c4f;
+  background: var(--accent);
   cursor: pointer;
 }
 .coach__ask button:disabled {
@@ -299,7 +299,7 @@
 }
 /* 浅色卡片里的按钮 */
 .coach .btn--felt {
-  color: #1f5c4f;
+  color: var(--accent);
   background: #e8efe9;
   box-shadow: inset 0 0 0 1px rgba(31, 92, 79, 0.2);
 }

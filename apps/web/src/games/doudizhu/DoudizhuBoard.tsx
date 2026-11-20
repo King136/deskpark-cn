@@ -260,6 +260,7 @@ export default function DoudizhuBoard({ ctl }: { ctl: Ctl }) {
         }
         bubble={bidBubble(s)}
         bubbleSide={side === 'left' ? 'right' : 'left'}
+        side={side}
       />
     </div>
   );

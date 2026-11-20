@@ -1,14 +1,14 @@
 import type { AnyGame, GameCategory } from '@park/engine';
 import { getGame } from '@park/engine';
 import { normalizeRoomCode } from '@park/protocol';
-import { ArrowRight, Blocks, Dice5, Gamepad2, Grid2x2, LayoutGrid, Play, Search, Settings2, Sparkles, UserRound, Users } from 'lucide-react';
+import { ArrowRight, Blocks, Dice5, Gamepad2, Grid2x2, LayoutGrid, Play, Search, Sparkles, UserRound, Users } from 'lucide-react';
 import type { CSSProperties, ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { PlayingCard } from '../components/PlayingCard';
 import { PavilionMark } from '../components/Brand';
 import { MahjongTile } from '../components/MahjongTile';
 import { Avatar } from '../components/Seat';
-import { Button, IconButton, toast } from '../components/ui';
+import { Button, toast } from '../components/ui';
 import type { GameUI } from '../games';
 import { GAME_UIS } from '../games';
 import { clearSavedLocal, loadSavedLocal } from '../lib/controller';
@@ -20,7 +20,6 @@ import { navigate } from '../lib/router';
 import { VERSION_TEXT } from '../lib/version';
 import { profile } from '../lib/store';
 import { markFreshStart } from './LocalGame';
-import { SettingsSheet } from './SettingsSheet';
 
 /** 玩法怎么组队，房号卡片上直接讲清楚，省得进去才发现没有搭档 */
 const TEAM_NOTE: Record<string, string> = {
@@ -141,7 +140,6 @@ export function Home() {
   const p = profile.use();
   const net = useOnline();
   const [setup, setSetup] = useState<{ gameId: string; mode: 'local' | 'online' } | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [code, setCode] = useState('');
   const [joining, setJoining] = useState(false);
   const [search, setSearch] = useState('');
@@ -299,13 +297,10 @@ export function Home() {
             </span>
           </div>
           <div className="main__me">
-            <button className="me-chip" onClick={() => navigate('/me')} aria-label="个人中心">
+            <button className="me-chip" onClick={() => navigate('/me')} aria-label="个人中心与设置" title="个人中心 · 设置">
               <Avatar name={p.name} avatar={p.avatar} size={26} />
               <span className="me-chip__name">{p.name}</span>
             </button>
-            <IconButton label="设置" onClick={() => setSettingsOpen(true)}>
-              <Settings2 size={18} />
-            </IconButton>
           </div>
         </header>
 
@@ -538,7 +533,6 @@ export function Home() {
           }}
         />
       )}
-      <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} showProfile />
     </div>
   );
 }

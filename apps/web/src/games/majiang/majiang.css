@@ -123,6 +123,29 @@
   white-space: nowrap;
 }
 
+/* 地域变体徽标：广东/长沙/国标三桌一眼分清 */
+.mj__variant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 12px;
+  border-radius: 9px;
+  background: rgba(9, 26, 22, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(231, 200, 134, 0.28);
+  white-space: nowrap;
+}
+.mj__variant b {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--felt-accent, #e7c886);
+}
+.mj__variant small {
+  font-size: 9px;
+  color: var(--felt-ink-3);
+}
+
 /* ---------- 中央 ---------- */
 .mj__compass {
   display: grid;
