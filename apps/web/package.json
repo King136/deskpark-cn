@@ -11,7 +11,7 @@
     "build:single": "vite build --config vite.single.config.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.1.0",
+    "@anthropic-ai/sdk": "^1.8.0",
     "@park/engine": "*",
     "@park/protocol": "*",
     "@park/score": "*",
