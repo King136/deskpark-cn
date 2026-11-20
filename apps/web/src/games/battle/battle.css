@@ -64,9 +64,11 @@
   background: rgba(255, 255, 255, 0.24);
 }
 .bt__cell:not(:disabled):active { transform: scale(0.94); }
-.bt__cell.miss { background: rgba(140, 170, 200, 0.36); }
-.bt__cell.hit { background: #b14a3e; }
-.bt__cell.ship { background: rgba(120, 200, 255, 0.3); }
+/* 海面：格子间透出深浅交替的波纹 */
+.bt__cell.miss { background: rgba(140, 170, 200, 0.24); }
+.bt__cell.hit { background: rgba(190, 88, 60, 0.4); }
+.bt__cell.ship { background: rgba(120, 200, 255, 0.22); }
+.bt__icon { width: 78%; height: 78%; pointer-events: none; }
 .bt__result { margin: 0; font-size: 12.5px; color: var(--ink-2); }
 .bt-art { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; width: 100%; height: 100%; padding: 10px; background: #233240; }
 .bt-art i { background: rgba(255,255,255,0.1); border-radius: 2px; }

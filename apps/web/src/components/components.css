@@ -1550,3 +1550,20 @@ html[data-booting='1'] .table {
 .seat--side-right .seat__meta {
   align-items: flex-end;
 }
+
+/* ---------- 立体点数骰（飞行棋 / 吹牛骰共用） ---------- */
+.dice {
+  display: inline-grid;
+  place-items: center;
+  width: var(--dice, 56px);
+  height: var(--dice, 56px);
+  flex: none;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.38));
+}
+.dice svg { width: 100%; height: 100%; }
+.dice.is-rolling { animation: dice-roll 0.5s ease; }
+@keyframes dice-roll {
+  0% { transform: rotate(-16deg) scale(0.9); }
+  55% { transform: rotate(10deg) scale(1.07); }
+  100% { transform: none; }
+}

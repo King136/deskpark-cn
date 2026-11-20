@@ -1,6 +1,7 @@
 import type { mjx } from '@park/engine';
 import { useState } from 'react';
 import { Button, Sheet } from '../../components/ui';
+import { FaceByIndex } from '../../components/MahjongTile';
 import type { GameController } from '../../lib/controller';
 import { callout } from '../../lib/callout';
 import { PixelAvatar } from '../../components/pixel/PixelAvatar';
@@ -44,12 +45,12 @@ function findChi(hand: number[], t: number): [number, number] | null {
   return null;
 }
 
-/** 一张牌面：点数 + 花色；花色分色，缩到 20px 也认得出 */
+/** 一张牌面：矢量花纹（筒饼/竹节/万字/字牌），与川麻同源，缩到 20px 也认得出 */
 function Tile({ t, small, back }: { t: number; small?: boolean; back?: boolean }) {
   if (back) return <i className={`mj__back${small ? ' is-small' : ''}`} />;
   return (
     <span className={`mj__face suit-${tileSuit(t)}${small ? ' is-small' : ''}`}>
-      <b>{tileText(t)}</b>
+      <FaceByIndex t={t} />
     </span>
   );
 }
@@ -96,7 +97,11 @@ export default function MajiangBoard({ ctl }: { ctl: Ctl }) {
         {v.melds[s]?.length > 0 && (
           <div className="mj__opp-melds">
             {v.melds[s].map((m, i) => (
-              <span key={i}>{m.map((t) => tileText(t)).join(' ')}</span>
+              <span key={i}>
+                {m.map((t, j) => (
+                  <Tile key={j} t={t} small />
+                ))}
+              </span>
             ))}
           </div>
         )}
@@ -150,7 +155,11 @@ export default function MajiangBoard({ ctl }: { ctl: Ctl }) {
               {v.melds[seat]?.length > 0 && (
                 <span className="mj__mine-melds">
                   {v.melds[seat].map((m, i) => (
-                    <em key={i}>{m.map((t) => tileText(t)).join(' ')}</em>
+                    <em key={i}>
+                      {m.map((t, j) => (
+                        <Tile key={j} t={t} small />
+                      ))}
+                    </em>
                   ))}
                 </span>
               )}
@@ -171,7 +180,7 @@ export default function MajiangBoard({ ctl }: { ctl: Ctl }) {
                   onClick={() => setSel(sel === i ? null : i)}
                   aria-label={tileText(t)}
                 >
-                  {tileText(t)}
+                  <FaceByIndex t={t} />
                 </button>
               ))}
             </div>

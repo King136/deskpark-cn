@@ -1,6 +1,7 @@
 import type { li } from '@park/engine';
 import { useState } from 'react';
 import { Button, Sheet } from '../../components/ui';
+import { Dice } from '../../components/Dice';
 import type { GameController } from '../../lib/controller';
 import { callout } from '../../lib/callout';
 import './liar.css';
@@ -35,7 +36,7 @@ export default function LiarBoard({ ctl }: { ctl: Ctl }) {
         <span className="li__dice-note">我的 {v.mine.length} 颗</span>
         <div className="li__dice-row">
           {v.mine.map((d, i) => (
-            <span key={i} className="li__die">{d}</span>
+            <Dice key={i} value={d} size="clamp(46px, 13cqw, 58px)" />
           ))}
         </div>
       </div>

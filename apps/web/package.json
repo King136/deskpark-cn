@@ -1,6 +1,6 @@
 {
   "name": "@park/web",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "description": "闲亭 Web 客户端（React + Vite）",
   "type": "module",

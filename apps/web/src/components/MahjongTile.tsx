@@ -13,6 +13,7 @@ const GREEN = '#2e7a4f';
 const BLUE = '#2a5b8c';
 
 const NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九'];
+const HONOR_CHARS = ['东', '南', '西', '北'];
 
 type Dot = [x: number, y: number, color: string];
 
@@ -265,6 +266,34 @@ function WanFace({ rank }: { rank: number }) {
   );
 }
 
+/** 字牌：东南西北（蓝黑）· 红中 · 绿发 · 白板（蓝框） */
+function HonorFace({ kind }: { kind: number }) {
+  if (kind === 6) {
+    // 白板：蓝白双框
+    return (
+      <g fill="none" stroke={BLUE}>
+        <rect x={10} y={14} width={40} height={52} rx={3} strokeWidth={3.4} />
+        <rect x={17} y={21} width={26} height={38} rx={1.5} strokeWidth={1.6} />
+      </g>
+    );
+  }
+  const ch = kind <= 3 ? HONOR_CHARS[kind] : kind === 4 ? '中' : '發';
+  const fill = kind === 4 ? RED : kind === 5 ? GREEN : INK;
+  return (
+    <text
+      x={30}
+      y={54}
+      fontSize={44}
+      fontWeight={700}
+      fontFamily="var(--font-display)"
+      textAnchor="middle"
+      fill={fill}
+    >
+      {ch}
+    </text>
+  );
+}
+
 export function TileFace({ tile }: { tile: Pick<mj.Tile, 'suit' | 'rank'> }) {
   let body: ReactNode;
   if (tile.suit === 'wan') body = <WanFace rank={tile.rank} />;
@@ -275,6 +304,20 @@ export function TileFace({ tile }: { tile: Pick<mj.Tile, 'suit' | 'rank'> }) {
       {body}
     </svg>
   );
+}
+
+/** 全 34 种牌的花纹（0-8 万 / 9-17 条 / 18-26 筒 / 27-30 风 / 31 中 / 32 发 / 33 白），
+ *  供推倒胡三变体等以整数编号存牌的玩法直接使用 */
+export function FaceByIndex({ t }: { t: number }) {
+  if (t >= 27) {
+    return (
+      <svg viewBox="0 0 60 80" className="mjtile__svg" aria-hidden="true">
+        <HonorFace kind={t - 27} />
+      </svg>
+    );
+  }
+  const suit = (['wan', 'tiao', 'tong'] as const)[Math.floor(t / 9)];
+  return <TileFace tile={{ suit, rank: (t % 9) + 1 }} />;
 }
 
 export interface MahjongTileProps extends HTMLAttributes<HTMLDivElement> {

@@ -1,6 +1,64 @@
 .ld { display: flex; flex-direction: column; height: 100%; gap: 10px; padding: 2px 6px 12px; }
-.ld__head { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--felt-ink-2); }
-.ld__dice { align-self: center; width: 64px; height: 64px; display: grid; place-items: center; border-radius: 12px; background: #f2ead9; color: #3a3226; font-size: 26px; font-weight: 800; }
+
+/* 顶部：立体点数骰 + 提示 */
+.ld__top { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.ld__hint { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--felt-ink); }
+.ld__hint small { font-size: 11px; color: var(--felt-ink-3); }
+
+/* 蛇形跑道 */
+.ld__board { flex: 1; display: grid; align-content: center; min-height: 0; overflow: auto; }
+.ld__track {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  max-width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 8px;
+  border-radius: 14px;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 10px, transparent 10px 20px),
+    rgba(0, 0, 0, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.ld__cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ld__cell.is-even { background: rgba(255, 255, 255, 0.135); }
+/* 起点绿圈 · 终点金底 */
+.ld__cell.is-start { background: rgba(110, 190, 145, 0.2); box-shadow: inset 0 0 0 1.6px rgba(120, 200, 150, 0.55); }
+.ld__cell.is-goal {
+  background: linear-gradient(160deg, rgba(231, 200, 134, 0.4), rgba(214, 168, 88, 0.22));
+  box-shadow: inset 0 0 0 1.6px rgba(231, 200, 134, 0.75), 0 0 10px rgba(231, 200, 134, 0.28);
+}
+.ld__no {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 8.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--felt-ink-3);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.ld__cell.is-start .ld__no { color: #9fd8b4; opacity: 0.95; }
+.ld__cell.is-goal .ld__no { color: var(--felt-accent, #e7c886); opacity: 0.95; }
+
+/* 停在格子里的飞机棋子 */
+.ld__planes { display: flex; align-items: center; justify-content: center; }
+.ld__plane { display: grid; place-items: center; filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.45)); animation: ld-land 0.18s ease-out both; }
+@keyframes ld-land {
+  from { transform: translateY(-6px) scale(1.15); }
+  to { transform: none; }
+}
+
 /* 四家进度总览 */
 .ld__players { display: flex; flex-direction: column; gap: 6px; }
 .ld__prow {
@@ -22,83 +80,28 @@
   border: 0;
   min-width: 0;
   border-radius: 8px;
-  padding: 4px 2px;
+  padding: 4px 2px 3px;
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   background: rgba(255, 255, 255, 0.1);
   color: var(--felt-ink-2);
   font-size: 11px;
   line-height: 1;
   white-space: nowrap;
 }
-.ld__ptok b { font-size: 11px; font-weight: 800; opacity: 0.75; }
-.ld__ptok small { font-size: 10.5px; }
+.ld__ptok small { font-size: 10px; }
 .ld__ptok.is-static { opacity: 0.72; }
 .ld__ptok.is-on {
   background: rgba(255, 200, 120, 0.34);
   color: var(--felt-ink);
   box-shadow: inset 0 0 0 1px rgba(255, 200, 120, 0.55);
 }
-.ld__board { flex: 1; display: grid; gap: 6px; align-content: center; min-height: 0; overflow: auto; }
-.ld__track {
-  display: grid;
-  gap: 4px;
-  width: 100%;
-  max-width: min(100%, 560px);
-  margin: 0 auto;
-  align-self: center;
-}
+.ld__ptok.is-done { opacity: 0.66; }
+.ld__pstat { flex: none; font-size: 10px; color: var(--felt-ink-3); }
 
-/* 手机竖屏：轨道 7 列 × 4 行撑不满高度，把格子做大到贴满宽度 */
-html[data-device='phone'][data-orientation='portrait'] .ld__track {
-  max-width: 100%;
-  gap: 5px;
-}
-.ld__cell {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-/* 空跑道也要看得出是「第几格」，否则开局 28 格全空像坏掉了 */
-.ld__no {
-  position: absolute;
-  top: 2px;
-  left: 4px;
-  font-size: 8.5px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--felt-ink-3);
-  opacity: 0.6;
-  pointer-events: none;
-}
-.ld__cell.is-start { background: rgba(120, 200, 150, 0.14); }
-.ld__cell.is-start .ld__no { color: #9fd8b4; opacity: 0.95; }
-.ld__cell.is-goal { background: rgba(231, 200, 134, 0.18); }
-.ld__cell.is-goal .ld__no { color: var(--felt-accent, #e7c886); opacity: 0.95; }
-.ld__cell i {
-  width: 62%;
-  height: 62%;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  display: grid;
-  place-items: center;
-  font-style: normal;
-  font-size: 9px;
-  font-weight: 800;
-  color: rgba(0, 0, 0, 0.6);
-  flex: none;
-}
-.ld__legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 12px; font-size: 11.5px; color: var(--felt-ink-2); }
-.ld__legend span { display: inline-flex; align-items: center; gap: 5px; }
-.ld__legend i { width: 9px; height: 9px; border-radius: 50%; }
 .ld__ops { display: flex; gap: 10px; }
 .ld__ops > * { flex: 1; }
 .ld__result { margin: 0; font-size: 12.5px; color: var(--ink-2); }
